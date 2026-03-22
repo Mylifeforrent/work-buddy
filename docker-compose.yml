@@ -1,0 +1,122 @@
+# Work Buddy - Docker Compose for Local Development
+# Starts all mock services for fully local agent development and testing
+#
+# Usage:
+#   docker compose up -d        # Start all mock services
+#   docker compose down         # Stop all mock services
+#   docker compose logs -f      # Follow logs
+
+services:
+  # ── Mock SSO Server ─────────────────────────────────────────────────────
+  mock-sso:
+    build:
+      context: .
+      dockerfile: mock_servers/mock_sso_server/Dockerfile
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./mock_servers/seed_data:/app/seed_data:ro
+    environment:
+      - PORT=8090
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Mock Jira Server ────────────────────────────────────────────────────
+  mock-jira:
+    build:
+      context: .
+      dockerfile: mock_servers/mock_jira_server/Dockerfile
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./mock_servers/seed_data:/app/seed_data:ro
+    environment:
+      - PORT=8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Mock Confluence Server ──────────────────────────────────────────────
+  mock-confluence:
+    build:
+      context: .
+      dockerfile: mock_servers/mock_confluence_server/Dockerfile
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./mock_servers/seed_data:/app/seed_data:ro
+    environment:
+      - PORT=8082
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Mock OpenSearch with Dashboards UI ──────────────────────────────────
+  mock-opensearch:
+    build:
+      context: .
+      dockerfile: mock_servers/mock_opensearch_server/Dockerfile
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./mock_servers/seed_data:/app/seed_data:ro
+    environment:
+      - PORT=9200
+      - SSO_URL=http://mock-sso:8090
+    depends_on:
+      mock-sso:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Mock SpringBoot Admin ───────────────────────────────────────────────
+  mock-springboot-admin:
+    build:
+      context: .
+      dockerfile: mock_servers/mock_springboot_admin_server/Dockerfile
+    ports:
+      - "9300:9300"
+    volumes:
+      - ./mock_servers/seed_data:/app/seed_data:ro
+    environment:
+      - PORT=9300
+      - SSO_URL=http://mock-sso:8090
+    depends_on:
+      mock-sso:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9300/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Mock Grafana ────────────────────────────────────────────────────────
+  mock-grafana:
+    build:
+      context: .
+      dockerfile: mock_servers/mock_grafana_server/Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./mock_servers/seed_data:/app/seed_data:ro
+    environment:
+      - PORT=3001
+      - SSO_URL=http://mock-sso:8090
+    depends_on:
+      mock-sso:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3

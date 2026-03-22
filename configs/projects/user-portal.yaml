@@ -1,0 +1,88 @@
+# Sample React Web Application Project Config
+# This is one of 3 React web apps
+
+name: "User Portal"
+type: react-app
+base_url: "http://localhost:3000"
+
+jira:
+  project_key: "UP"
+  epic: "UP-100"
+  sprint_board: "User Portal Sprint Board"
+  labels:
+    - user-portal
+    - frontend
+    - react
+  components:
+    - UI
+    - Authentication
+  description_template: |
+    ## Background
+    {background}
+
+    ## Acceptance Criteria
+    {acceptance_criteria}
+
+    ## Technical Notes
+    {technical_notes}
+
+auth:
+  type: corporate-sso
+  username_selector: "#staffId"
+  password_selector: "#password"
+  submit_selector: "#loginBtn"
+
+tool_urls:
+  opensearch: "http://localhost:9200"
+  springboot_admin: "http://localhost:9300"
+  grafana: "http://localhost:3001"
+
+test_flows:
+  - name: "Login Page"
+    steps:
+      - action: navigate
+        target: "/login"
+      - action: screenshot
+        label: "login_page"
+
+  - name: "Dashboard"
+    steps:
+      - action: navigate
+        target: "/dashboard"
+      - action: wait_for
+        target: ".dashboard-content"
+      - action: screenshot
+        label: "dashboard"
+
+  - name: "User Profile"
+    steps:
+      - action: navigate
+        target: "/profile"
+      - action: screenshot
+        label: "user_profile"
+
+  - name: "Settings"
+    steps:
+      - action: navigate
+        target: "/settings"
+      - action: screenshot
+        label: "settings_page"
+
+evidence_checks:
+  opensearch:
+    - name: "Application Logs"
+      query: "service:user-portal AND level:INFO"
+      screenshot_label: "user_portal_app_logs"
+    - name: "Error Check"
+      query: "service:user-portal AND level:ERROR"
+      screenshot_label: "user_portal_error_check"
+
+springboot_admin_checks:
+  - service_name: "user-portal-bff"
+    check: r2db_status
+    expected: "UP"
+    screenshot_label: "user_portal_bff_health"
+
+grafana_checks:
+  - dashboard_id: "user-portal-overview"
+    screenshot_label: "user_portal_metrics"

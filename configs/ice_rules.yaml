@@ -1,0 +1,52 @@
+# ICE (Internal Compliance Engine) Rules Configuration
+# These rules define what must be present on a Jira ticket before production release
+
+required_evidence:
+  - type: dev_testing
+    label: "Dev Testing Evidence"
+    required: true
+    description: "Evidence of development testing (unit tests, integration tests)"
+
+  - type: uat_testing
+    label: "UAT Testing Evidence"
+    required: true
+    description: "Evidence of User Acceptance Testing"
+
+  - type: regression_testing
+    label: "Regression Testing Evidence"
+    required: true
+    description: "Evidence of regression testing (screenshots, test reports)"
+
+  - type: performance_testing
+    label: "Performance Testing Evidence"
+    required: false
+    description: "Evidence of performance testing (load tests, response times)"
+
+required_labels:
+  - "release-ready"
+  - "ice-compliant"
+
+required_description_sections:
+  - "Background"
+  - "Acceptance Criteria"
+
+cr_fields:
+  - field: "change_request_id"
+    required: true
+    description: "Change Request ID"
+
+  - field: "implementation_steps"
+    required: true
+    description: "Detailed implementation steps for the release"
+
+  - field: "rollback_steps"
+    required: true
+    description: "Rollback steps in case of failure"
+
+  - field: "pvt_steps"
+    required: true
+    description: "Post Verification Testing steps"
+
+  - field: "release_notes"
+    required: true
+    description: "Release notes summarizing changes"

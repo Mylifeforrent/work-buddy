@@ -1,0 +1,19 @@
+# Work Buddy - Global Configuration
+# Switch mode to "live" when connecting to real services
+
+mode: mock
+log_level: INFO
+structured_logging: false
+
+# Mock server URLs (used when mode: mock)
+mock_jira_url: "http://localhost:8081"
+mock_confluence_url: "http://localhost:8082"
+mock_sso_url: "http://localhost:8090"
+
+# LLM settings
+llm_provider: openai
+llm_model: gpt-4o
+
+# Evidence storage
+evidence_dir: evidence
+screenshots_dir: screenshots

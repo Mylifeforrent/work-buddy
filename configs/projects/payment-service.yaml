@@ -1,0 +1,70 @@
+# Sample Backend Service Project Config
+# This represents one of 10+ backend API services
+
+name: "Payment Service"
+type: backend
+
+jira:
+  project_key: "PAY"
+  epic: "PAY-200"
+  sprint_board: "Payment Sprint Board"
+  labels:
+    - payment
+    - backend
+    - api
+  components:
+    - API
+    - Database
+    - Integration
+  description_template: |
+    ## Background
+    {background}
+
+    ## API Changes
+    {api_changes}
+
+    ## Database Changes
+    {database_changes}
+
+    ## Acceptance Criteria
+    {acceptance_criteria}
+
+auth:
+  type: corporate-sso
+  username_selector: "#staffId"
+  password_selector: "#password"
+  submit_selector: "#loginBtn"
+
+# This service uses Cluster A monitoring tools
+tool_urls:
+  opensearch: "http://localhost:9200"
+  springboot_admin: "http://localhost:9300"
+  grafana: "http://localhost:3001"
+
+evidence_checks:
+  opensearch:
+    - name: "Business Transaction Logs"
+      query: "service:payment-service AND message:*transaction*"
+      screenshot_label: "payment_transaction_logs"
+    - name: "API Request Logs"
+      query: "service:payment-service AND message:*request*"
+      screenshot_label: "payment_api_logs"
+    - name: "Error Check"
+      query: "service:payment-service AND level:ERROR"
+      screenshot_label: "payment_error_check"
+
+springboot_admin_checks:
+  - service_name: "payment-service"
+    check: r2db_status
+    expected: "UP"
+    screenshot_label: "payment_r2db_status"
+
+grafana_checks:
+  - dashboard_id: "payment-service-overview"
+    screenshot_label: "payment_metrics_overview"
+  - dashboard_id: "payment-service-latency"
+    screenshot_label: "payment_latency_metrics"
+
+postman:
+  collection: "collections/payment-service.json"
+  environment: "environments/uat.json"
