@@ -4,18 +4,87 @@ import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-from work_buddy.services.browser_service import BrowserService, Screenshot, EvidencePackage
-from work_buddy.core.config import ProjectConfig, TestFlow, AuthConfig
+from work_buddy.services.browser_service import BrowserService, Screenshot, Recording, EvidencePackage
+from work_buddy.core.config import ProjectConfig, TestFlow, TestStep, AuthConfig
+
 
 class BrowserTestAgent:
-    """Agent responsible for executing browser UI tests and capturing screenshots."""
+    """Agent responsible for executing browser UI tests and capturing screenshots.
 
-    def __init__(self, browser: BrowserService, output_dir: str = "evidence"):
+    V2: Added video recording and GIF conversion for evidence verification.
+    Each flow execution is wrapped with start_recording/stop_recording,
+    producing both WebM video and GIF preview alongside static screenshots.
+    """
+
+    def __init__(self, browser: BrowserService, output_dir: str = "evidence",
+                 enable_recording: bool = True):
         self.browser = browser
         self.output_dir = output_dir
         self.baseline_dir = os.path.join(output_dir, "baseline")
+        self.recordings_dir = os.path.join(output_dir, "recordings")
+        self.gifs_dir = os.path.join(output_dir, "gifs")
+        self.enable_recording = enable_recording
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(self.baseline_dir, exist_ok=True)
+        os.makedirs(self.recordings_dir, exist_ok=True)
+        os.makedirs(self.gifs_dir, exist_ok=True)
+
+    async def _start_recording_if_enabled(self, label: str) -> None:
+        """Start video recording if recording is enabled."""
+        if self.enable_recording:
+            try:
+                await self.browser.start_recording(self.recordings_dir)
+            except Exception as e:
+                print(f"Warning: Could not start recording for {label}: {e}")
+
+    async def _stop_recording_if_enabled(self, project_name: str, flow_name: str) -> tuple[list[Recording], list[Recording]]:
+        """Stop recording and convert to GIF. Returns (recordings, gifs)."""
+        recordings = []
+        gifs = []
+
+        if not self.enable_recording:
+            return recordings, gifs
+
+        try:
+            video_path = await self.browser.stop_recording()
+            if video_path and os.path.exists(video_path):
+                timestamp = datetime.utcnow().isoformat() + "Z"
+                size_bytes = os.path.getsize(video_path)
+
+                # Rename to a descriptive name
+                final_video_name = f"{project_name}_{flow_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.webm"
+                final_video_path = os.path.join(self.recordings_dir, final_video_name)
+                if video_path != final_video_path:
+                    os.rename(video_path, final_video_path)
+
+                recording = Recording(
+                    path=final_video_path,
+                    format="webm",
+                    label=f"{project_name}_{flow_name}",
+                    timestamp=timestamp,
+                    size_bytes=size_bytes
+                )
+                recordings.append(recording)
+
+                # Convert to GIF
+                gif_name = f"{project_name}_{flow_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.gif"
+                gif_path = os.path.join(self.gifs_dir, gif_name)
+                result_gif = await self.browser.convert_to_gif(final_video_path, gif_path)
+                if result_gif:
+                    gif_size = os.path.getsize(result_gif) if os.path.exists(result_gif) else 0
+                    gif_recording = Recording(
+                        path=result_gif,
+                        format="gif",
+                        label=f"{project_name}_{flow_name}_preview",
+                        timestamp=timestamp,
+                        size_bytes=gif_size
+                    )
+                    gifs.append(gif_recording)
+
+        except Exception as e:
+            print(f"Warning: Recording stop/conversion failed: {e}")
+
+        return recordings, gifs
 
     async def handle_sso(self, auth_config: AuthConfig, username: str = "testuser", password: str = "dummy") -> None:
         """Handle corporate SSO login if redirected to the SSO page."""
@@ -37,11 +106,14 @@ class BrowserTestAgent:
                 print(f"Warning: SSO handling failed: {e}")
 
     async def execute_react_flow(self, project: ProjectConfig, flow: TestFlow) -> EvidencePackage:
-        """Execute a UI test flow for a React Web App."""
+        """Execute a UI test flow for a React Web App with video recording."""
         print(f"Executing React flow '{flow.name}' for {project.name}")
         screenshots = []
         errors = []
         
+        # Start recording
+        await self._start_recording_if_enabled(f"{project.name}_{flow.name}")
+
         try:
             if project.base_url:
                 await self.browser.navigate(project.base_url)
@@ -84,16 +156,24 @@ class BrowserTestAgent:
         except Exception as e:
             errors.append(f"Flow execution failed: {str(e)}")
 
-        return self._create_package(project.name, flow.name, "react-app", screenshots, errors)
+        # Stop recording and get video/GIF
+        recordings, gifs = await self._stop_recording_if_enabled(project.name, flow.name)
+
+        return self._create_package(project.name, flow.name, "react-app", screenshots, errors,
+                                     recordings=recordings, gifs=gifs)
 
     async def capture_opensearch(self, project: ProjectConfig) -> EvidencePackage:
-        """Capture OpenSearch logs dashboard screenshots based on configured keywords."""
+        """Capture OpenSearch logs dashboard screenshots with video recording."""
         url = project.tool_urls.opensearch
         if not url:
             return self._empty_package(project.name, "opensearch", "No OpenSearch URL configured")
             
         screenshots = []
         errors = []
+
+        # Start recording
+        await self._start_recording_if_enabled(f"{project.name}_opensearch")
+
         try:
             await self.browser.navigate(url)
             await asyncio.sleep(2)
@@ -102,13 +182,9 @@ class BrowserTestAgent:
             checks = project.evidence_checks.get("opensearch", []) if project.evidence_checks else []
             for check in checks:
                 if check.query:
-                    # Very simple mock sequence: type in search bar, press enter
                     search_selector = "input[type='text'], input[placeholder*='Search']"
                     await self.browser.wait_for(search_selector, timeout=5000)
                     await self.browser.type_text(search_selector, check.query)
-                    # Assuming press enter or there's a submit button
-                    # For Playwright, we can just click body or something to unfocus, or simulated Enter
-                    # As a stub:
                     await asyncio.sleep(2)
                 
                 label = check.screenshot_label or check.name
@@ -118,17 +194,25 @@ class BrowserTestAgent:
                 
         except Exception as e:
             errors.append(str(e))
-            
-        return self._create_package(project.name, "opensearch_capture", "opensearch", screenshots, errors)
+
+        # Stop recording and get video/GIF
+        recordings, gifs = await self._stop_recording_if_enabled(project.name, "opensearch_capture")
+
+        return self._create_package(project.name, "opensearch_capture", "opensearch", screenshots, errors,
+                                     recordings=recordings, gifs=gifs)
 
     async def capture_springboot_admin(self, project: ProjectConfig) -> EvidencePackage:
-        """Capture SpringBoot Admin health status screenshots."""
+        """Capture SpringBoot Admin health status screenshots with video recording."""
         url = project.tool_urls.springboot_admin
         if not url:
             return self._empty_package(project.name, "springboot_admin", "No SBA URL configured")
             
         screenshots = []
         errors = []
+
+        # Start recording
+        await self._start_recording_if_enabled(f"{project.name}_sba")
+
         try:
             await self.browser.navigate(url)
             await asyncio.sleep(2)
@@ -148,17 +232,25 @@ class BrowserTestAgent:
                     
         except Exception as e:
             errors.append(str(e))
-            
-        return self._create_package(project.name, "sba_capture", "springboot-admin", screenshots, errors)
+
+        # Stop recording and get video/GIF
+        recordings, gifs = await self._stop_recording_if_enabled(project.name, "sba_capture")
+
+        return self._create_package(project.name, "sba_capture", "springboot-admin", screenshots, errors,
+                                     recordings=recordings, gifs=gifs)
 
     async def capture_grafana(self, project: ProjectConfig) -> EvidencePackage:
-        """Capture Grafana dashboard screenshots."""
+        """Capture Grafana dashboard screenshots with video recording."""
         url = project.tool_urls.grafana
         if not url:
             return self._empty_package(project.name, "grafana", "No Grafana URL configured")
             
         screenshots = []
         errors = []
+
+        # Start recording
+        await self._start_recording_if_enabled(f"{project.name}_grafana")
+
         try:
             for check in project.grafana_checks:
                 dashboard_url = f"{url}/d/{check.dashboard_id}"
@@ -175,15 +267,24 @@ class BrowserTestAgent:
                 
         except Exception as e:
             errors.append(str(e))
-            
-        return self._create_package(project.name, "grafana_capture", "grafana", screenshots, errors)
 
-    def _create_package(self, project_name: str, flow_name: str, source_tool: str, screenshots: List[Screenshot], errors: List[str]) -> EvidencePackage:
+        # Stop recording and get video/GIF
+        recordings, gifs = await self._stop_recording_if_enabled(project.name, "grafana_capture")
+
+        return self._create_package(project.name, "grafana_capture", "grafana", screenshots, errors,
+                                     recordings=recordings, gifs=gifs)
+
+    def _create_package(self, project_name: str, flow_name: str, source_tool: str,
+                        screenshots: List[Screenshot], errors: List[str],
+                        recordings: List[Recording] = None,
+                        gifs: List[Recording] = None) -> EvidencePackage:
         pkg = EvidencePackage(
             project_name=project_name,
             flow_name=flow_name,
             source_tool=source_tool,
             screenshots=screenshots,
+            recordings=recordings or [],
+            gifs=gifs or [],
             passed=len(errors) == 0,
             errors=errors,
             metadata={"timestamp": datetime.utcnow().isoformat() + "Z"}
@@ -198,7 +299,9 @@ class BrowserTestAgent:
                 "tool": pkg.source_tool,
                 "passed": pkg.passed,
                 "errors": pkg.errors,
-                "screenshots": [s.__dict__ for s in pkg.screenshots]
+                "screenshots": [s.__dict__ for s in pkg.screenshots],
+                "recordings": [r.__dict__ for r in pkg.recordings],
+                "gifs": [g.__dict__ for g in pkg.gifs]
             }
             json.dump(data, f, indent=2)
             
@@ -209,7 +312,6 @@ class BrowserTestAgent:
 
     async def generate_comparison_report(self, project_name: str, flow_name: str) -> str:
         """Generate side-by-side HTML report comparing baseline to current screenshots."""
-        # Ensure we have screenshots with the prefix project_name_flow_name
         current_files = [f for f in os.listdir(self.output_dir) if f.startswith(f"{project_name}_{flow_name}") and f.endswith(".png")]
         
         html_content = f"""

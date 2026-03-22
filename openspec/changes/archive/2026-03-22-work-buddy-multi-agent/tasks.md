@@ -138,3 +138,22 @@
 - [x] 13.6 E2E test: PVT health check flow with mock services
 - [x] 13.7 Write README.md with architecture overview, setup instructions, config guide, usage examples
 - [x] 13.8 Write CONTRIBUTING.md with guide for adding real adapters
+
+## 14. MCP Integration Design
+
+- [x] 14.1 Update design.md with MCP as Service Transport decision (Decision 9)
+- [x] 14.2 Update architecture diagram to show MCP client adapter layer alongside direct adapters
+- [x] 14.3 Update proposal.md with mcp-service-transport capability
+- [x] 14.4 Document Skills layer (composable capabilities) in design diagram
+- [x] 14.5 Add MCP-related risks/trade-offs to design.md
+
+## 15. Video/GIF Evidence Recording
+
+- [ ] 15.1 Add Recording dataclass and recording methods to BrowserService ABC
+- [ ] 15.2 Extend EvidencePackage with recordings and gifs fields
+- [ ] 15.3 Implement Playwright video recording in RealBrowserAdapter (start_recording, stop_recording)
+- [ ] 15.4 Implement ffmpeg-based GIF conversion in RealBrowserAdapter (convert_to_gif)
+- [ ] 15.5 Wrap BrowserTestAgent flow methods with recording lifecycle
+- [ ] 15.6 Update README.md architecture diagram with video/GIF recording capability
+- [ ] 15.7 Write unit tests for recording lifecycle in test_browser_agent.py
+

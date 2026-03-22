@@ -33,17 +33,22 @@ A multi-agent system ("Work Buddy") can automate the majority of this work. The 
 - `agent-coordinator`: Orchestration layer that routes user requests to appropriate agents, manages inter-agent data flow, and provides a unified CLI interface
 - `mock-services`: Complete mock implementations of all external services (Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin, SSO) with realistic data, enabling fully local development and testing
 - `service-abstractions`: Hexagonal architecture with service interfaces (ports) and pluggable adapters, allowing one-config switch between mock and real implementations
+- `mcp-service-transport`: MCP (Model Context Protocol) server integration for external services — Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin can be accessed via MCP servers as an alternative transport layer, enabling AI coding assistants to directly invoke Work Buddy capabilities as MCP tools
+- `video-gif-evidence`: Video recording (WebM) and GIF screenshot capture during browser test flows — Playwright native video recording with ffmpeg-based GIF conversion, providing full video for detailed review and GIF previews for Jira evidence comments
 
 ### Modified Capabilities
-_(none — this is a greenfield project)_
+- `browser-test-agent`: Enhanced with video recording lifecycle — each test flow is now recorded as WebM video and converted to GIF for evidence verification
+- `evidence-gathering`: Evidence packages now include recordings (WebM) and GIF previews alongside static PNG screenshots
 
 ## Impact
 
 - **New codebase**: Full multi-agent system with Python backend, hexagonal architecture
 - **External API abstractions**: Service interfaces for Jira, Confluence, Grafana, Prometheus, OpenSearch, SpringBoot Admin
+- **MCP integration**: External services accessible via MCP servers — agents can connect through MCP protocol alongside direct adapter pattern, enabling AI assistant composability
 - **Mock servers**: FastAPI-based mock services runnable via Docker Compose
-- **Browser automation**: Playwright for React UIs + monitoring dashboard screenshot capture
+- **Browser automation**: Playwright for React UIs + monitoring dashboard screenshot capture + video/GIF recording
 - **LLM dependency**: For release note generation, log analysis reasoning, and document retrieval (RAG)
 - **Configuration surface**: Per-project YAML configs for 13+ apps (URLs, auth, test flows, tool instance mappings, keywords)
 - **Auth complexity**: Corporate SSO with separate sessions per tool — abstracted for mock/real swap
 - **Local infrastructure**: Docker Compose with mock Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin, SSO servers
+- **ffmpeg dependency**: Required for video-to-GIF conversion in evidence capture pipeline

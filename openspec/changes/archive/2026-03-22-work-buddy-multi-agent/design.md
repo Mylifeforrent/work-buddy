@@ -162,3 +162,81 @@ workbuddy alert triage --service payment-service
 - **LLM output quality for release notes** → Always present generated content for human review before posting to Jira.
 - **Multiple monitoring tool instances** → Projects mapping to different tool URLs adds configuration complexity. Validate configs at startup.
 - **Docker resource usage** → Running 6+ mock services locally requires reasonable system resources. Keep mock servers lightweight.
+- **Video recording storage** → WebM videos + GIF conversions increase storage requirements. Implement cleanup policies for old evidence.
+- **ffmpeg dependency** → GIF conversion requires ffmpeg installed on the host. Document this as a prerequisite; provide graceful fallback (video-only) if not available.
+- **MCP server availability** → MCP integration adds dependency on MCP server implementations. If MCP server is unavailable, fall back to direct adapter pattern.
+
+## Architecture Diagram (V2 — with MCP & Video Recording)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         CLI (Typer)                              │
+├─────────────────────────────────────────────────────────────────┤
+│                Agent Coordinator (LangGraph)                     │
+├────────┬─────────┬──────────┬─────────┬──────────┬─────────────┤
+│ Jira   │Evidence │  ICE     │ Release │Confluence│ Log Analyst │
+│ Task   │Gatherer │Compliance│  Prep   │ RAG      │ & PVT       │
+│ Agent  │ Agent   │  Agent   │  Agent  │  Agent   │   Agent     │
+├────────┴─────────┴──────────┴─────────┴──────────┴─────────────┤
+│            Browser Test Agent  ──┬── Screenshots (PNG)          │
+│                                  ├── Video Recording (WebM)     │
+│                                  └── GIF Previews (ffmpeg)      │
+├─────────────────────────────────────────────────────────────────┤
+│                   Service Interfaces (ABCs)                      │
+├──────────────────────┬──────────────────────────────────────────┤
+│   Mock Adapters      │          Real Adapters                    │
+│   (FastAPI in-proc)  │     ┌────────────────────┐               │
+│                      │     │ Direct API Clients  │               │
+│                      │     ├────────────────────┤               │
+│                      │     │ MCP Client Adapter  │  ← NEW       │
+│                      │     │ (MCP Server ↔ Tool) │               │
+│                      │     └────────────────────┘               │
+└──────────────────────┴──────────────────────────────────────────┘
+
+MCP Integration (alternative transport):
+┌──────────────┐     MCP Protocol     ┌──────────────────────┐
+│  Work Buddy  │─────────────────────▶│  MCP Server: Jira    │
+│  Agent       │    tools/resources   ├──────────────────────┤
+│              │─────────────────────▶│  MCP Server: Conflu  │
+│              │─────────────────────▶│  MCP Server: Search  │
+│              │─────────────────────▶│  MCP Server: Grafana │
+└──────────────┘                      └──────────────────────┘
+
+Skills (composable capabilities):
+┌─────────────────────────────────────────────────────┐
+│  Skills Layer (reusable, declarative capabilities)   │
+├─────────────────────────────────────────────────────┤
+│  screenshot-and-upload  │  Capture + attach to Jira │
+│  sso-login-flow         │  SSO auth for any tool    │
+│  evidence-package       │  Screenshots → Package    │
+│  video-record-flow      │  Record + convert to GIF  │
+│  log-keyword-search     │  OpenSearch query + proof │
+└─────────────────────────────────────────────────────┘
+```
+
+### 9. MCP as Service Transport
+
+**Decision**: Support MCP (Model Context Protocol) as an alternative transport for accessing external services. Each external tool (Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin) can be fronted by an MCP server that exposes the service's capabilities as MCP tools and resources.
+
+**Rationale**: MCP enables AI coding assistants (Claude Code, Gemini CLI, etc.) to directly invoke Work Buddy capabilities. Instead of only the CLI, any MCP-compatible client can call `jira.create_task`, `confluence.search`, `opensearch.query` etc. This makes the system composable in the broader AI tooling ecosystem.
+
+**Architecture**: MCP servers sit alongside the existing adapter pattern — both are valid ways to reach external services:
+- **Direct Adapter** (existing): Agent → ABC → MockAdapter/RealAdapter → Service
+- **MCP Adapter** (new): Agent → ABC → MCPClientAdapter → MCP Server → Service
+
+The hexagonal architecture already supports this naturally — the MCP client adapter is just another implementation of the service ABC.
+
+### 10. Video/GIF Evidence Recording
+
+**Decision**: Add video recording (WebM) and GIF conversion to the browser evidence capture pipeline using Playwright's native video recording and ffmpeg.
+
+**Rationale**: Static screenshots capture point-in-time state, but video recordings capture the entire agent workflow — navigation, SSO login, search queries, page transitions. This is critical for:
+- **Verification**: Reviewing whether the AI agent followed the correct pathway
+- **Debugging**: Understanding failures in multi-step browser flows
+- **Evidence**: Richer evidence for Jira comments (GIF previews + full video links)
+
+**Implementation**:
+- Playwright's `record_video_dir` on `BrowserContext` for zero-overhead WebM capture
+- `ffmpeg` subprocess for WebM → GIF conversion (configurable FPS, scale)
+- `EvidencePackage` extended with `recordings` (WebM) and `gifs` (GIF) fields
+- Graceful fallback: if ffmpeg is unavailable, skip GIF conversion, keep video only

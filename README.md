@@ -23,20 +23,29 @@ workbuddy compliance check --ticket PAY-1234
 Work Buddy follows a **hexagonal architecture** (ports & adapters) pattern:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      CLI (Typer)                             │
-├─────────────────────────────────────────────────────────────┤
-│                  Agent Coordinator (LangGraph)              │
-├──────────┬──────────┬──────────┬──────────┬────────────────┤
-│  Jira    │ Evidence │ ICE      │ Release  │  Confluence    │
-│  Task    │ Gatherer │ Compliance│ Prep   │  RAG Agent     │
-│  Agent   │ Agent    │ Agent    │ Agent    │                │
-├──────────┴──────────┴──────────┴──────────┴────────────────┤
-│               Service Interfaces (ABCs)                     │
-├─────────────────────────────────────────────────────────────┤
-│    Mock Adapters    │           Real Adapters               │
-│    (FastAPI)        │           (Production APIs)           │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         CLI (Typer)                              │
+├─────────────────────────────────────────────────────────────────┤
+│                Agent Coordinator (LangGraph)                     │
+├────────┬─────────┬──────────┬─────────┬──────────┬─────────────┤
+│ Jira   │Evidence │  ICE     │ Release │Confluence│ Log Analyst │
+│ Task   │Gatherer │Compliance│  Prep   │ RAG      │ & PVT       │
+│ Agent  │ Agent   │  Agent   │  Agent  │  Agent   │   Agent     │
+├────────┴─────────┴──────────┴─────────┴──────────┴─────────────┤
+│            Browser Test Agent  ──┬── Screenshots (PNG)          │
+│                                  ├── Video Recording (WebM)     │
+│                                  └── GIF Previews (ffmpeg)      │
+├─────────────────────────────────────────────────────────────────┤
+│                   Service Interfaces (ABCs)                      │
+├──────────────────────┬──────────────────────────────────────────┤
+│   Mock Adapters      │          Real Adapters                    │
+│   (FastAPI)          │     ┌────────────────────┐               │
+│                      │     │ Direct API Clients  │               │
+│                      │     ├────────────────────┤               │
+│                      │     │ MCP Client Adapter  │               │
+│                      │     │ (MCP Server ↔ Tool) │               │
+│                      │     └────────────────────┘               │
+└──────────────────────┴──────────────────────────────────────────┘
 ```
 
 ### Project Structure
@@ -64,7 +73,7 @@ configs/
 |-------|-------------|
 | **Jira Task Agent** | Automated task creation with templates and field population |
 | **Evidence Gatherer** | Collects test evidence and posts to Jira |
-| **Browser Test Agent** | Playwright-based UI testing and screenshot capture |
+| **Browser Test Agent** | Playwright-based UI testing, screenshot capture, video recording & GIF conversion |
 | **ICE Compliance Agent** | Validates tickets against compliance rules |
 | **Release Prep Agent** | Generates release notes, rollback steps, PVT steps |
 | **Confluence RAG Agent** | Semantic search and summarization of documentation |
