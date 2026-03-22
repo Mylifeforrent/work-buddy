@@ -1,0 +1,120 @@
+import os
+import subprocess
+from typing import List, Dict, Optional, Tuple
+
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
+
+from work_buddy.services.jira_service import JiraService, JiraTicket
+from work_buddy.agents.ice_compliance_agent import IceComplianceAgent
+from work_buddy.core.config import ProjectConfig, load_project_config, load_app_config
+
+class ReleasePrepAgent:
+    """Agent that prepares Jira CR tickets by generating release documentation using LLM and git history."""
+    
+    def __init__(self, jira_service: JiraService, compliance_agent: IceComplianceAgent):
+        self.jira = jira_service
+        self.compliance = compliance_agent
+        app_config = load_app_config()
+        # Mock LLM calls if in a totally constrained environment, but otherwise use LangChain
+        self.llm = ChatOpenAI(model=app_config.llm_model, temperature=0.2)
+        
+    def _parse_git_history(self, repo_path: str, since_tag: str, until_tag: str = "HEAD") -> str:
+        """Parse git commits between two tags/commits."""
+        try:
+            cmd = ["git", "-C", repo_path, "log", f"{since_tag}..{until_tag}", "--pretty=format:%h - %s (%an)"]
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if result.returncode == 0:
+                return result.stdout
+            return f"Error parsing git history: {result.stderr}"
+        except Exception as e:
+            return f"Failed to execute git log: {str(e)}"
+
+    async def generate_release_notes(self, ticket: JiraTicket, git_context: str) -> str:
+        prompt = f"""
+        You are a release note generator. Based on the following Jira ticket details and git commit history, generate a concise, customer-facing release notes section in markdown.
+        
+        Ticket Summary: {ticket.summary}
+        Ticket Description: {ticket.description}
+        
+        Git Commits:
+        {git_context}
+        """
+        response = await self.llm.ainvoke([SystemMessage(content="You are a helpful software engineering assistant."), HumanMessage(content=prompt)])
+        return str(response.content)
+
+    async def generate_implementation_steps(self, project: ProjectConfig) -> str:
+        # In reality, this would read from PR descriptions or codebase
+        # Using project template context if provided
+        return f"1. Deploy {project.name} to production.\\n2. Verify health checks."
+
+    async def generate_rollback_steps(self, project: ProjectConfig) -> str:
+        return f"1. Revert deployment of {project.name} to previous version.\\n2. Clean up any invalid data."
+
+    async def generate_pvt_steps(self, project: ProjectConfig) -> str:
+        return f"1. Log into {project.name} UI.\\n2. Perform standard user flow.\\n3. Check logs in OpenSearch for errors."
+
+    async def generate_background(self, epic_ticket: Optional[JiraTicket]) -> str:
+        if not epic_ticket:
+            return "Background context not available."
+        prompt = f"Summarize this epic description into a short Background context for a release ticket:\\n{epic_ticket.description}"
+        response = await self.llm.ainvoke([SystemMessage(content="You summarize Epic descriptions."), HumanMessage(content=prompt)])
+        return str(response.content)
+
+    async def prepare_release_ticket(self, cr_ticket_key: str, repo_path: str, since_tag: str, confirm_fn) -> bool:
+        """
+        Main pipeline: Run ICE compliance, generate all docs, update ticket conditionally.
+        """
+        valid, gaps = await self.compliance.validate_ticket(cr_ticket_key)
+        if not valid:
+            print(f"ICE Validation Failed for {cr_ticket_key}: {gaps}")
+            # Could prompt human-in-the-loop to fix or override, but for now return false
+            return False
+            
+        cr_ticket = await self.jira.get_ticket(cr_ticket_key)
+        try:
+            project_config = load_project_config(cr_ticket.project)
+        except Exception:
+            project_config = ProjectConfig(name=cr_ticket.project, type="backend")
+            
+        git_history = self._parse_git_history(repo_path, since_tag)
+        
+        epic_ticket = None
+        if cr_ticket.epic_link:
+            try:
+                epic_ticket = await self.jira.get_ticket(cr_ticket.epic_link)
+            except Exception:
+                pass
+                
+        # Generate components
+        release_notes = await self.generate_release_notes(cr_ticket, git_history)
+        imp_steps = await self.generate_implementation_steps(project_config)
+        rb_steps = await self.generate_rollback_steps(project_config)
+        pvt_steps = await self.generate_pvt_steps(project_config)
+        bg_context = await self.generate_background(epic_ticket)
+        
+        # Combine into complete description
+        new_description = f"""
+h2. Background
+{bg_context}
+
+h2. Release Notes
+{release_notes}
+
+h2. Implementation Steps
+{imp_steps}
+
+h2. Rollback Steps
+{rb_steps}
+
+h2. PVT Steps
+{pvt_steps}
+
+*(auto-generated by work buddy)*
+"""
+        
+        # Human in the loop review
+        if confirm_fn(f"Ready to update CR Ticket {cr_ticket_key} with generated docs. Proceed?"):
+            await self.jira.update_description(cr_ticket_key, new_description.strip())
+            return True
+        return False

@@ -15,10 +15,12 @@ from typing import Optional
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 from work_buddy.core.config import load_app_config, load_project_config, list_projects
 from work_buddy.core.container import create_container
 from work_buddy.core.logging import setup_logging, get_logger
+from work_buddy.agents.coordinator import AgentCoordinator
 
 app = typer.Typer(
     name="workbuddy",
@@ -86,10 +88,20 @@ def test_run(
 
     config = load_app_config()
     container = create_container(config)
+    coordinator = AgentCoordinator(container)
 
     console.print(f"[bold]Running {test_type} tests for [cyan]{project}[/cyan]...[/bold]")
-    # Agent execution will be wired in task group 5
-    console.print("[yellow]⚠ Browser Test Agent not yet implemented[/yellow]")
+
+    result = coordinator.execute("test", project=project, test_type=test_type)
+
+    if result.get("success"):
+        console.print("[green]✓ Tests completed successfully[/green]")
+        packages = result.get("result", {}).get("evidence_packages", [])
+        if packages:
+            console.print(f"  Evidence packages: {len(packages)}")
+    else:
+        console.print(f"[red]✗ Tests failed: {result.get('error', 'Unknown error')}[/red]")
+        raise typer.Exit(1)
 
 
 @test_app.command("compare")
@@ -110,8 +122,22 @@ def jira_create(
 ):
     """Create a Jira task from a requirement."""
     setup_logging()
+    config = load_app_config()
+    container = create_container(config)
+    coordinator = AgentCoordinator(container)
+
     console.print(f"[bold]Creating Jira task for [cyan]{project}[/cyan]...[/bold]")
-    console.print("[yellow]⚠ Jira Task Agent not yet implemented[/yellow]")
+
+    result = coordinator.execute("jira", project=project, requirement=requirement)
+
+    if result.get("success"):
+        tickets = result.get("result", {}).get("tickets", [])
+        if tickets:
+            for t in tickets:
+                console.print(f"[green]✓ Created ticket: {t['key']} - {t['summary']}[/green]")
+    else:
+        console.print(f"[red]✗ Failed: {result.get('error', 'Unknown error')}[/red]")
+        raise typer.Exit(1)
 
 
 @jira_app.command("bulk-create")
@@ -133,8 +159,33 @@ def compliance_check(
 ):
     """Check ICE compliance for a Jira ticket."""
     setup_logging()
+    config = load_app_config()
+    container = create_container(config)
+    coordinator = AgentCoordinator(container)
+
     console.print(f"[bold]Checking ICE compliance for [cyan]{ticket}[/cyan]...[/bold]")
-    console.print("[yellow]⚠ ICE Compliance Agent not yet implemented[/yellow]")
+
+    result = coordinator.execute("compliance", ticket=ticket)
+
+    validation = result.get("result", {})
+    if validation.get("valid"):
+        console.print("[green]✓ Ticket is ICE compliant[/green]")
+    else:
+        gaps = validation.get("gaps", [])
+        console.print(f"[yellow]⚠ {len(gaps)} compliance gaps found:[/yellow]")
+
+        table = Table()
+        table.add_column("Type", style="cyan")
+        table.add_column("Issue")
+        table.add_column("Remediation")
+
+        for gap in gaps:
+            table.add_row(gap.get("type", ""), gap.get("message", ""), gap.get("remediation", ""))
+
+        console.print(table)
+
+        if not fix:
+            raise typer.Exit(1)
 
 
 # ── Release commands ──────────────────────────────────────────────────────────
@@ -142,11 +193,30 @@ def compliance_check(
 @release_app.command("prepare")
 def release_prepare(
     ticket: str = typer.Option(..., "--ticket", "-t", help="Jira ticket ID"),
+    repo_path: str = typer.Option(".", "--repo", "-r", help="Path to git repository"),
+    since_tag: str = typer.Option("HEAD~10", "--since", help="Git tag/commit to start from"),
 ):
     """Prepare release documentation for a ticket."""
     setup_logging()
+    config = load_app_config()
+    container = create_container(config)
+    coordinator = AgentCoordinator(container)
+
     console.print(f"[bold]Preparing release for [cyan]{ticket}[/cyan]...[/bold]")
-    console.print("[yellow]⚠ Release Prep Agent not yet implemented[/yellow]")
+
+    result = coordinator.execute(
+        "release",
+        ticket=ticket,
+        repo_path=repo_path,
+        since_tag=since_tag
+    )
+
+    if result.get("success"):
+        console.print("[green]✓ Release documentation prepared and posted[/green]")
+    else:
+        reason = result.get("result", {}).get("reason", result.get("error", "Unknown error"))
+        console.print(f"[yellow]⚠ Release prep incomplete: {reason}[/yellow]")
+        raise typer.Exit(1)
 
 
 # ── PVT commands ──────────────────────────────────────────────────────────────
@@ -157,8 +227,22 @@ def pvt_run(
 ):
     """Run PVT health check for a project."""
     setup_logging()
+    config = load_app_config()
+    container = create_container(config)
+    coordinator = AgentCoordinator(container)
+
     console.print(f"[bold]Running PVT health check for [cyan]{project}[/cyan]...[/bold]")
-    console.print("[yellow]⚠ PVT Agent not yet implemented[/yellow]")
+
+    result = coordinator.execute("pvt", project=project)
+
+    if result.get("success"):
+        report_path = result.get("result", {}).get("report_path")
+        console.print(f"[green]✓ PVT completed[/green]")
+        if report_path:
+            console.print(f"  Report: {report_path}")
+    else:
+        console.print(f"[red]✗ PVT failed: {result.get('error', 'Unknown error')}[/red]")
+        raise typer.Exit(1)
 
 
 # ── Docs commands ─────────────────────────────────────────────────────────────
@@ -169,20 +253,75 @@ def docs_search(
 ):
     """Search Confluence documentation."""
     setup_logging()
+    config = load_app_config()
+    container = create_container(config)
+    coordinator = AgentCoordinator(container)
+
     console.print(f"[bold]Searching docs for: [cyan]{query}[/cyan]...[/bold]")
-    console.print("[yellow]⚠ Doc Retriever Agent not yet implemented[/yellow]")
+
+    result = coordinator.execute("docs", query=query)
+
+    if result.get("success"):
+        answer = result.get("result", {}).get("answer", "")
+        sources = result.get("result", {}).get("sources", [])
+
+        console.print(Panel(answer, title="Answer", border_style="green"))
+
+        if sources:
+            console.print("\n[bold]Sources:[/bold]")
+            for src in sources:
+                console.print(f"  • {src}")
+    else:
+        console.print(f"[yellow]No results found or error: {result.get('error', 'Unknown')}[/yellow]")
+
+
+@docs_app.command("summarize")
+def docs_summarize(
+    page_id: str = typer.Argument(..., help="Confluence page ID"),
+):
+    """Summarize a Confluence document."""
+    setup_logging()
+    config = load_app_config()
+    container = create_container(config)
+    coordinator = AgentCoordinator(container)
+
+    console.print(f"[bold]Summarizing page: [cyan]{page_id}[/cyan]...[/bold]")
+
+    result = coordinator.execute("docs", page_id=page_id)
+
+    if result.get("success") and result.get("result"):
+        summary = result["result"].get("summary", "")
+        title = result["result"].get("title", "")
+        console.print(Panel(summary, title=f"Summary: {title}", border_style="green"))
+    else:
+        console.print(f"[yellow]Could not summarize page: {result.get('error', 'Page not found')}[/yellow]")
 
 
 # ── Alert commands ────────────────────────────────────────────────────────────
 
 @alert_app.command("triage")
 def alert_triage(
-    service: str = typer.Option(..., "--service", "-s", help="Service name"),
+    service: str = typer.Option(..., "--service", "-s", help="Service name (project config)"),
+    alert: str = typer.Option(None, "--alert", "-a", help="Alert details/message"),
 ):
     """Triage a production alert for a service."""
     setup_logging()
+    config = load_app_config()
+    container = create_container(config)
+    coordinator = AgentCoordinator(container)
+
     console.print(f"[bold]Triaging alert for [cyan]{service}[/cyan]...[/bold]")
-    console.print("[yellow]⚠ Log Analyst Agent not yet implemented[/yellow]")
+
+    result = coordinator.execute("alert", project=service, alert_details=alert or "Manual triage request")
+
+    if result.get("success"):
+        report_path = result.get("result", {}).get("report_path")
+        console.print(f"[green]✓ Triage complete[/green]")
+        if report_path:
+            console.print(f"  Report: {report_path}")
+    else:
+        console.print(f"[red]✗ Triage failed: {result.get('error', 'Unknown error')}[/red]")
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":
