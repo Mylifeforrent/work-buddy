@@ -1,99 +1,164 @@
 ## Context
 
-We manage 9 React web application projects across the full software development lifecycle. Each project cycle involves significant manual work for Jira management, testing evidence capture, ICE compliance validation, release documentation, Confluence search, PVT health checks, and production alert triage. These tasks follow predictable patterns but are multiplied across 9 projects, making them ideal candidates for agent-based automation.
+We manage 13+ applications: 3 React web apps with browser UIs and 10+ backend services exposing APIs only. Each project cycle involves significant manual effort for Jira management, testing evidence capture (screenshots from OpenSearch, SpringBoot Admin, Grafana dashboards), ICE compliance validation, release documentation, Confluence search, PVT health checks, and production alert triage.
 
-The current state is fully manual — all Jira fields, testing evidence, compliance checks, and release documentation are prepared by hand. Production alert investigations require manual log correlation across Grafana, Prometheus, and OpenSearch.
+All external tools (Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin) use Corporate SSO for authentication, with **no session sharing** between tools — each requires a separate SSO login flow.
+
+This system will be built as an **enterprise-grade reference architecture** with mocked external services, enabling fully local execution. The architecture must allow seamless swapping from mock to real implementations via configuration.
 
 **Constraints:**
-- All 9 apps are React-based web applications
-- Jira, Confluence, Grafana, Prometheus, and OpenSearch are the existing tools
-- ICE (Internal Compliance Engine) standards must be followed precisely
-- Agents must support per-project configuration (different URLs, auth, test flows)
+- 3 React web apps (browser UI testing) + 10+ backend API services (dashboard-based evidence)
+- Testing evidence for backend services = screenshots from OpenSearch logs, SpringBoot Admin R2DB status, Grafana metrics
+- Corporate SSO authentication, separate login per tool, no session sharing
+- Only some services share the same OpenSearch/SpringBoot Admin/Grafana instances — per-project tool URL mapping required
+- Must run fully locally with mock services via Docker Compose
+- Must be designed as enterprise-grade reference, not a toy demo
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Build a modular multi-agent system where each agent handles one SDLC phase
-- Automate Jira task creation with correct tags, epics, sprints, and descriptions
-- Automate browser-based testing and screenshot capture across 9 React apps
-- Automate evidence gathering and Jira comment formatting for Dev/UAT/Regression/Performance tests
-- Validate ICE compliance before production releases
-- Generate release documentation (background, implementation steps, release notes, PVT steps, rollback steps)
-- Enable RAG-powered search of Confluence documentation
-- Automate PVT health checks and production alert triage
-- Support per-project YAML configuration for all 9 apps
-- Provide a phased delivery approach — start with highest-ROI agents, grow incrementally
+- Build a modular multi-agent system with clean hexagonal architecture (ports & adapters)
+- All external dependencies abstracted behind service interfaces (Python ABCs)
+- Complete mock implementations for every external service (Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin, SSO)
+- Docker Compose setup for one-command local dev environment
+- Switch between mock and real implementations via a single config flag
+- Per-project YAML config supporting different tool instance URLs, keywords, and test flows
+- Automate browser-based screenshot capture for both React app UIs and monitoring dashboards
+- Handle corporate SSO with per-tool separate authentication flows
+- CLI-first interaction with enterprise patterns (logging, tracing, error handling)
+- Phased delivery starting with highest-ROI components
 
 **Non-Goals:**
 - Replacing human judgment for critical release decisions — agents assist, humans approve
-- Full end-to-end CI/CD pipeline management — agents integrate with existing pipelines, not replace them
-- Building a production-grade SaaS product — this is an internal productivity tool
-- Mobile app testing — scope is limited to web (React) applications
-- Automated code generation or code review — scope is SDLC operations, not writing code
+- Full end-to-end CI/CD pipeline management — agents integrate with existing pipelines
+- Building a production-grade SaaS product — this is an internal productivity reference architecture
+- Mobile app testing — scope is web UIs and API services only
+- Automated code generation or code review — scope is SDLC operations
+- Implementing real integrations — mock layer only, user swaps in real implementations
 
 ## Decisions
 
-### 1. Agent Framework: LangGraph
+### 1. Architecture: Hexagonal (Ports & Adapters)
+
+**Decision**: Use hexagonal architecture with service interfaces as ports and mock/real implementations as adapters.
+
+**Rationale**: The core requirement is to run fully locally with mocks but be swappable to real services. Hexagonal architecture is the textbook pattern for this — agents depend on abstract interfaces, never on concrete implementations. Dependency injection selects mock or real adapters based on configuration.
+
+```
+Agents → Service Interfaces (ABCs) → Mock Adapters (local)
+                                    → Real Adapters (production)
+```
+
+**Alternatives considered**:
+- *Direct API calls with feature flags*: Simpler but couples agents to specific implementations, harder to test
+- *Plugin architecture*: More flexible but over-engineered for the known set of services
+
+### 2. Agent Framework: LangGraph
 
 **Decision**: Use LangGraph for agent orchestration.
 
-**Rationale**: LangGraph provides a graph-based execution model well-suited for multi-agent workflows with inter-agent data dependencies (e.g., Browser Test Agent → Evidence Gatherer → ICE Compliance). It supports checkpointing, human-in-the-loop, and streaming — all useful for this use case.
+**Rationale**: LangGraph provides a graph-based execution model well-suited for multi-agent workflows with inter-agent data dependencies (e.g., Browser Test Agent → Evidence Gatherer → ICE Compliance). Supports checkpointing, human-in-the-loop, and streaming.
 
 **Alternatives considered**:
 - *CrewAI*: Simpler but less control over execution flow; harder to model complex agent dependencies
 - *AutoGen*: Good for conversations but overly focused on chat-based agent interaction vs. task orchestration
 - *Custom*: Maximum control but significant effort to build orchestration, state management, and error handling
 
-### 2. Browser Automation: Playwright
+### 3. Browser Automation: Playwright
 
-**Decision**: Use Playwright for all browser-based testing and screenshot capture.
+**Decision**: Use Playwright for all browser-based screenshot capture — both React app UIs and monitoring dashboards (OpenSearch, SpringBoot Admin, Grafana).
 
-**Rationale**: Playwright has excellent React support, handles SPAs with async rendering, provides built-in screenshot APIs, supports both headless and headful modes, and has a robust Python API. It can handle login flows, form interactions, and page waits natively.
+**Rationale**: Playwright handles SPAs, SSO redirects, form logins, and provides built-in screenshot APIs. It can automate OpenSearch searches (type query, wait for results, screenshot) and SpringBoot Admin navigation (find service, check R2DB status, screenshot) just as easily as React app pages.
 
 **Alternatives considered**:
-- *Selenium*: Mature but slower, more brittle with React SPAs
-- *Puppeteer*: Good but Node.js only; we want a Python-native stack
-- *Cypress*: Developer testing tool, not suitable for agent-driven automation
+- *Selenium*: Mature but slower, more brittle with modern SPAs
+- *Direct API calls for monitoring tools*: Faster but doesn't produce screenshots (which are required as Jira evidence)
 
-### 3. Per-Project Configuration: YAML Files
+### 4. Mock Services: FastAPI-Based Mock Servers
 
-**Decision**: Use YAML configuration files per project to define test flows, Jira settings, URLs, and auth credentials.
+**Decision**: Implement mock services as FastAPI applications, each providing realistic API responses and (where applicable) a minimal web UI for browser-based screenshot capture.
 
-**Rationale**: 9 projects × multiple configurations (test flows, Jira templates, PVT steps) requires a declarative, human-readable format. YAML is easy to maintain and version-control. Each project gets its own config directory.
+**Mock services needed:**
 
-### 4. LLM Usage: Targeted, Not Universal
-
-**Decision**: Use LLM (OpenAI/Claude) only where reasoning is needed — release note generation, log analysis, document retrieval (RAG). Use deterministic logic for template-filling, validation, and browser automation.
-
-**Rationale**: Most tasks (Jira field filling, compliance checking, screenshot capture) are rule-based and don't benefit from LLM reasoning. Using LLMs selectively reduces cost, latency, and unpredictability.
-
-### 5. Phased Delivery
-
-**Decision**: Deliver in 6 phases, starting with Browser Test Agent (highest ROI).
-
-**Rationale**: The Browser Test Agent produces screenshots that feed into Evidence Gatherer and ICE Compliance — building it first creates the data pipeline for subsequent agents. Each phase builds on the previous one.
-
-| Phase | Agent(s) | Depends On |
+| Mock | What It Simulates | Web UI Needed? |
 |---|---|---|
-| 1 | Browser Test Agent + shared infra | — |
-| 2 | Jira Task Agent + Evidence Gatherer | Phase 1 |
-| 3 | ICE Compliance Agent | Phase 2 |
-| 4 | Release Prep Agent | Phase 2-3 |
-| 5 | Log Analyst + PVT Agent | Phase 1 |
-| 6 | Confluence Doc Retriever (RAG) | — |
+| Mock Jira | REST API for tasks, comments, attachments, labels | No (API only) |
+| Mock Confluence | REST API for page search and retrieval | No (API only) |
+| Mock OpenSearch | Log search API + minimal Dashboards UI for screenshots | **Yes** |
+| Mock Grafana | Metrics API + minimal dashboard UI for screenshots | **Yes** |
+| Mock SpringBoot Admin | Minimal web UI showing services with R2DB status | **Yes** |
+| Mock SSO | Simple login form that issues session cookies | **Yes** |
 
-### 6. Interaction Model: CLI First
+**Rationale**: Mock services with web UIs allow end-to-end testing of the screenshot capture workflow locally. FastAPI is lightweight, fast, and supports both REST APIs and HTML rendering (via Jinja2).
 
-**Decision**: Start with a CLI interface, with optional web dashboard later.
+### 5. Per-Project Configuration with Tool Instance Mapping
 
-**Rationale**: CLI is fastest to build, works in terminal workflows, and is easy to script. A web dashboard can be added in a later phase for visualization (test reports, compliance dashboards).
+**Decision**: Each project has a YAML config file specifying its tool instance URLs, since not all services share the same OpenSearch/Grafana/SpringBoot Admin instances.
+
+```yaml
+# Example: payment-service.yaml
+name: "Payment Service"
+type: "backend"             # backend | react-app
+jira:
+  project_key: "PAY"
+  epic: "PAY-100"
+  labels: ["payment", "backend"]
+tool_urls:
+  opensearch: "http://localhost:9201"      # Mock OpenSearch instance A
+  springboot_admin: "http://localhost:9301" # Mock SpringBoot Admin A
+  grafana: "http://localhost:3001"          # Mock Grafana instance A
+evidence_checks:
+  opensearch:
+    - name: "Business Logs"
+      query: "service:payment AND message:*transaction*"
+    - name: "Error Check"
+      query: "service:payment AND level:ERROR"
+  springboot_admin:
+    - service_name: "payment-service"
+      check: "r2db_status"
+      expected: "UP"
+```
+
+### 6. SSO Authentication Abstraction
+
+**Decision**: Create an SSO handler abstraction that supports per-tool authentication (no session sharing). Mock SSO accepts any staffid/password. Real SSO handles corporate SSO redirects.
+
+**Rationale**: User confirmed each tool requires separate SSO login. The abstraction must handle: detect SSO redirect → navigate to login page → enter credentials → handle possible MFA prompt → return to tool. In mock mode, this is a simple form submission.
+
+### 7. Interaction Model: CLI First (Typer)
+
+**Decision**: Use Typer for CLI with structured commands per agent capability.
+
+```bash
+workbuddy test --project payment-service --type regression
+workbuddy jira create --project payment-service --requirement "Add caching layer"
+workbuddy compliance check --ticket PAY-1234
+workbuddy release prepare --ticket PAY-1234
+workbuddy pvt run --project payment-service
+workbuddy docs search "payment API specification"
+workbuddy alert triage --service payment-service
+```
+
+### 8. Docker Compose for Local Dev
+
+**Decision**: Provide a Docker Compose file that starts all mock services with a single command.
+
+```yaml
+# docker-compose.yml starts:
+# - Mock Jira (port 8081)
+# - Mock Confluence (port 8082)
+# - Mock OpenSearch with Dashboards UI (port 9200/9201)
+# - Mock Grafana (port 3000/3001)
+# - Mock SpringBoot Admin (port 9300/9301)
+# - Mock SSO (port 8090)
+```
 
 ## Risks / Trade-offs
 
-- **Jira API rate limits** → Implement request batching and caching. Monitor usage patterns.
-- **Auth credential management for 9 apps** → Use a secure local credential store (e.g., keyring or .env with restricted permissions). Never hardcode credentials.
-- **React SPA rendering timing** → Playwright's `wait_for_selector` and `network_idle` mitigate this, but some apps may need custom wait strategies.
-- **ICE standard changes** → ICE rules should be externalized in config, not hardcoded. When standards change, update config, not code.
-- **LLM output quality for release notes** → Always present generated content for human review before posting to Jira. Never auto-post LLM-generated content.
-- **Maintenance burden of 9 project configs** → Provide config validation tooling and templates to minimize drift.
-- **Scope creep** → Phased delivery with clear boundaries per phase. Each phase has a defined "done" state.
+- **Mock fidelity** → Mocks must be realistic enough to validate agent logic, but don't need to replicate every API quirk. Focus on the endpoints agents actually use.
+- **Corporate SSO complexity** → Real SSO may involve MFA, SAML, OAuth2 redirects. Mock SSO simplifies this. When switching to real SSO, may need per-organization customization.
+- **Screenshot-based evidence** → Screenshots are inherently fragile (UI changes break selectors). Use resilient selectors and configurable wait strategies.
+- **10+ project configs** → Maintaining YAML configs for 13+ projects requires discipline. Provide config validation tooling and templates.
+- **LLM output quality for release notes** → Always present generated content for human review before posting to Jira.
+- **Multiple monitoring tool instances** → Projects mapping to different tool URLs adds configuration complexity. Validate configs at startup.
+- **Docker resource usage** → Running 6+ mock services locally requires reasonable system resources. Keep mock servers lightweight.
