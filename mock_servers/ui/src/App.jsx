@@ -1,215 +1,479 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  BarChart3, 
-  Activity, 
-  Search, 
-  FileText, 
-  LayoutDashboard, 
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle
-} from 'lucide-react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import {
+  Layout,
+  Menu,
+  Card,
+  Form,
+  Input,
+  Button,
+  Table,
+  Space,
+  Tag,
+  Typography,
+  Descriptions,
+  List,
+  Avatar,
+  Badge,
+  Statistic,
+  Row,
+  Col,
+  Divider,
+  message,
+  theme
+} from 'antd';
+import {
+  UserOutlined,
+  LockOutlined,
+  DashboardOutlined,
+  UnorderedListOutlined,
+  FormOutlined,
+  BarChartOutlined,
+  SettingOutlined,
+  LogoutOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  SearchOutlined,
+  FileTextOutlined
+} from '@ant-design/icons';
 
-// --- SSO Component ---
-const MockSSO = () => (
-  <div className="flex flex-col items-center justify-center min-h-screen p-4">
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="card w-full max-w-md shadow-2xl"
-    >
-      <div className="flex items-center gap-3 mb-6">
-        <ShieldCheck className="text-blue-400 w-8 h-8" />
-        <h2 className="text-2xl font-bold">Corporate SSO</h2>
-      </div>
-      <form action="/login" method="POST" className="space-y-4">
-        <div>
-          <label className="block text-slate-400 mb-2">Staff ID</label>
-          <input type="text" id="username" name="username" className="input" required />
-        </div>
-        <div>
-          <label className="block text-slate-400 mb-2">Password</label>
-          <input type="password" id="password" name="password" className="input" required />
-        </div>
-        <button type="submit" id="submit" className="btn btn-primary w-full mt-4">Sign In</button>
-      </form>
-    </motion.div>
-  </div>
-);
+const { Header, Content, Sider } = Layout;
+const { Title, Text, Paragraph } = Typography;
+const { useToken } = theme;
 
-// --- Jira Component ---
-const MockJira = () => (
-  <div className="min-h-screen bg-slate-900 p-8">
-    <div className="flex items-center gap-3 mb-8">
-      <LayoutDashboard className="jira-blue w-8 h-8" />
-      <h1 className="text-2xl font-bold">Jira Service Desktop</h1>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {['Backlog', 'In Progress', 'Done'].map(status => (
-        <div key={status} className="card min-h-[400px]">
-          <h3 className="text-slate-400 font-semibold mb-4 border-b border-slate-700 pb-2">{status}</h3>
-          <div className="space-y-3">
-            {[1, 2].map(i => (
-              <motion.div 
-                whileHover={{ scale: 1.02 }}
-                key={i} 
-                className="bg-slate-800 p-4 rounded-lg border border-slate-700 cursor-pointer"
-              >
-                <div className="text-blue-400 text-sm mb-1">PROJ-{i}00{i}</div>
-                <div className="text-slate-200">Example Issue {i} - Mock {status} task</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+// --- Auth Context ---
+const AuthContext = createContext(null);
 
-// --- Confluence Component ---
-const MockConfluence = () => (
-  <div className="min-h-screen bg-slate-900">
-    <div className="flex border-b border-slate-700 h-screen">
-      <div className="w-64 bg-slate-800 p-6 border-r border-slate-700">
-        <div className="flex items-center gap-2 mb-8">
-          <FileText className="confluence-blue w-6 h-6" />
-          <span className="font-bold">Confluence</span>
-        </div>
-        <div className="space-y-2">
-          {['Technical Specs', 'Onboarding Guide', 'API Documentation', 'Team Notes'].map(p => (
-            <div key={p} className="text-slate-400 hover:text-white cursor-pointer py-1">{p}</div>
-          ))}
-        </div>
-      </div>
-      <div className="flex-1 p-12 overflow-y-auto">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <h1 className="text-4xl font-bold mb-6">Technical Specification V2</h1>
-          <div className="prose prose-invert max-w-none text-slate-300 space-y-4">
-            <p>This document outlines the architectural changes for the Work Buddy V2 system integration.</p>
-            <h2 className="text-2xl font-semibold text-white mt-8">Overview</h2>
-            <p>We are migrating multiple service transports to MCP (Model Context Protocol) to enable richer interactions for AI coding assistants.</p>
-          </div>
-        </motion.div>
-      </div>
-    </div>
-  </div>
-);
+const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};
 
-// --- OpenSearch Component ---
-const MockOpenSearch = () => (
-  <div className="min-h-screen bg-slate-900 p-6">
-    <div className="flex items-center justify-between mb-8">
-      <div className="flex items-center gap-3">
-        <Search className="opensearch-green w-8 h-8" />
-        <h1 className="text-2xl font-bold">OpenSearch Dashboards</h1>
-      </div>
-      <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 text-sm">
-        Last 15 minutes
-      </div>
-    </div>
-    <div className="card mb-6">
-      <input type="text" className="input" placeholder="Search (e.g. status:500 OR level:ERROR)" />
-    </div>
-    <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-      <table className="w-full text-left">
-        <thead className="bg-slate-900/50 text-slate-400 text-sm">
-          <tr>
-            <th className="p-4">Timestamp</th>
-            <th className="p-4">Level</th>
-            <th className="p-4">Message</th>
-            <th className="p-4">Service</th>
-          </tr>
-        </thead>
-        <tbody className="text-slate-200">
-          {[1, 2, 3, 4, 5].map(i => (
-            <tr key={i} className="border-t border-slate-700 hover:bg-slate-700/30">
-              <td className="p-4 text-sm text-slate-400">2023-01-01 12:00:0{i}</td>
-              <td className="p-4">
-                <span className={`px-2 py-0.5 rounded text-xs ${i % 2 === 0 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                  {i % 2 === 0 ? 'ERROR' : 'INFO'}
-                </span>
-              </td>
-              <td className="p-4">Simulation log entry #{i} for test verification</td>
-              <td className="p-4 text-slate-400">auth-service</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-);
+const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-// --- SpringBoot Admin Component ---
-const MockSpringBootAdmin = () => (
-  <div className="min-h-screen bg-slate-900 p-8">
-    <div className="flex items-center gap-3 mb-8">
-      <Activity className="spring-green w-8 h-8" />
-      <h1 className="text-2xl font-bold">Spring Boot Admin</h1>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {['auth-service', 'payment-service', 'order-service', 'inventory-service'].map((name, i) => (
-        <motion.div 
-          key={name}
-          whileHover={{ y: -5 }}
-          className="card"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <span className="font-semibold text-slate-200">{name}</span>
-            <CheckCircle2 className="text-spring-green w-5 h-5" />
-          </div>
-          <div className="text-sm text-slate-400">Up since 48h 12m</div>
-          <div className="mt-4 pt-4 border-t border-slate-700 text-xs text-blue-400 uppercase tracking-wider font-bold">
-            All Systems Operational
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  </div>
-);
-
-// --- Grafana Component ---
-const MockGrafana = () => (
-  <div className="min-h-screen bg-slate-900 p-6">
-    <div className="flex items-center gap-3 mb-8">
-      <BarChart3 className="grafana-orange w-8 h-8" />
-      <h1 className="text-2xl font-bold">Grafana Dashboard</h1>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {[1, 2, 3, 4, 5, 6].map(i => (
-        <div key={i} className="card h-64 flex flex-col items-center justify-center border-t-4 border-t-grafana-orange">
-          <div className="text-slate-400 mb-2">Metric Chart #{i}</div>
-          <div className="h-32 w-full bg-slate-800 rounded flex items-end gap-1 p-2">
-            {[4, 7, 2, 9, 3, 5, 8].map((h, j) => (
-              <div key={j} className="bg-blue-600/40 w-full" style={{ height: `${h * 10}%` }}></div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-// --- Main App Component ---
-function App() {
-  const toolId = window.TOOL_ID || 'sso';
-
-  const renderTool = () => {
-    switch (toolId) {
-      case 'sso': return <MockSSO />;
-      case 'jira': return <MockJira />;
-      case 'confluence': return <MockConfluence />;
-      case 'opensearch': return <MockOpenSearch />;
-      case 'springboot_admin': return <MockSpringBootAdmin />;
-      case 'grafana': return <MockGrafana />;
-      default: return <MockSSO />;
+  useEffect(() => {
+    // Check for existing session
+    const savedUser = sessionStorage.getItem('mockUser');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
     }
+    setLoading(false);
+  }, []);
+
+  const login = (username) => {
+    const userData = { username, name: `User ${username}`, loginTime: new Date().toISOString() };
+    setUser(userData);
+    sessionStorage.setItem('mockUser', JSON.stringify(userData));
+    return true;
+  };
+
+  const logout = () => {
+    setUser(null);
+    sessionStorage.removeItem('mockUser');
   };
 
   return (
-    <div className="mock-ui-container">
-      {renderTool()}
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// --- Login Page ---
+const LoginPage = () => {
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const onFinish = async (values) => {
+    setLoading(true);
+    // Simulate login delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    login(values.username);
+    message.success('Login successful!');
+    navigate('/dashboard');
+    setLoading(false);
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)'
+    }}>
+      <Card style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <Title level={3} style={{ marginBottom: 0 }}>Mock App Login</Title>
+          <Text type="secondary">Enter any credentials to test</Text>
+        </div>
+        <Form
+          name="login"
+          onFinish={onFinish}
+          layout="vertical"
+          size="large"
+        >
+          <Form.Item
+            name="username"
+            rules={[{ required: true, message: 'Please input your username!' }]}
+          >
+            <Input prefix={<UserOutlined />} placeholder="Username (any value)" id="username" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            rules={[{ required: true, message: 'Please input your password!' }]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="Password (any value)" id="password" />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={loading} block id="submit">
+              Sign In
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
     </div>
+  );
+};
+
+// --- Protected Route ---
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+      <Text>Loading...</Text>
+    </div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+};
+
+// --- Dashboard Page ---
+const DashboardPage = () => {
+  const { user } = useAuth();
+  const { token } = useToken();
+
+  const stats = [
+    { title: 'Total Tasks', value: 156, suffix: 'items' },
+    { title: 'Completed', value: 128, suffix: 'items' },
+    { title: 'In Progress', value: 23, suffix: 'items' },
+    { title: 'Pending', value: 5, suffix: 'items' },
+  ];
+
+  return (
+    <div>
+      <Title level={4}>Dashboard</Title>
+      <Paragraph type="secondary">
+        Welcome back, {user?.name || 'User'}! Here's your overview.
+      </Paragraph>
+
+      <Row gutter={16} style={{ marginTop: 16, marginBottom: 24 }}>
+        {stats.map((stat, index) => (
+          <Col span={6} key={index}>
+            <Card>
+              <Statistic
+                title={stat.title}
+                value={stat.value}
+                suffix={stat.suffix}
+                valueStyle={{ color: index === 3 ? '#cf1322' : '#3f8600' }}
+              />
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
+      <Card title="Recent Activity">
+        <List
+          dataSource={[
+            { text: 'Completed task PROJ-123', time: '2 hours ago', status: 'success' },
+            { text: 'Created new ticket PROJ-156', time: '5 hours ago', status: 'info' },
+            { text: 'Updated documentation', time: '1 day ago', status: 'success' },
+            { text: 'Reviewed pull request #42', time: '2 days ago', status: 'success' },
+          ]}
+          renderItem={item => (
+            <List.Item>
+              <List.Item.Meta
+                avatar={<Avatar icon={item.status === 'success' ? <CheckCircleOutlined /> : <FileTextOutlined />} />}
+                title={item.text}
+                description={item.time}
+              />
+            </List.Item>
+          )}
+        />
+      </Card>
+    </div>
+  );
+};
+
+// --- Data List Page ---
+const DataListPage = () => {
+  const columns = [
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
+    { title: 'Title', dataIndex: 'title', key: 'title' },
+    { title: 'Status', dataIndex: 'status', key: 'status', render: (status) => {
+      const colors = { 'Active': 'green', 'Pending': 'orange', 'Inactive': 'red' };
+      return <Tag color={colors[status]}>{status}</Tag>;
+    }},
+    { title: 'Created', dataIndex: 'created', key: 'created' },
+    { title: 'Action', key: 'action', render: () => (
+      <Space>
+        <Button type="link" size="small">View</Button>
+        <Button type="link" size="small">Edit</Button>
+      </Space>
+    )},
+  ];
+
+  const data = [
+    { key: '1', id: '001', title: 'Sample Data Item 1', status: 'Active', created: '2024-01-15' },
+    { key: '2', id: '002', title: 'Sample Data Item 2', status: 'Pending', created: '2024-01-16' },
+    { key: '3', id: '003', title: 'Sample Data Item 3', status: 'Active', created: '2024-01-17' },
+    { key: '4', id: '004', title: 'Sample Data Item 4', status: 'Inactive', created: '2024-01-18' },
+    { key: '5', id: '005', title: 'Sample Data Item 5', status: 'Active', created: '2024-01-19' },
+  ];
+
+  return (
+    <div>
+      <Title level={4}>Data List</Title>
+      <Paragraph type="secondary">
+        Browse and manage data records with Ant Design Table component.
+      </Paragraph>
+
+      <Card style={{ marginTop: 16 }}>
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+          <Input.Search placeholder="Search records..." style={{ width: 300 }} />
+          <Button type="primary">Add New</Button>
+        </div>
+        <Table columns={columns} dataSource={data} pagination={{ pageSize: 10 }} />
+      </Card>
+    </div>
+  );
+};
+
+// --- Form Page ---
+const FormPage = () => {
+  const [form] = Form.useForm();
+
+  const onFinish = (values) => {
+    console.log('Form values:', values);
+    message.success('Form submitted successfully!');
+  };
+
+  return (
+    <div>
+      <Title level={4}>Form Submission</Title>
+      <Paragraph type="secondary">
+        Test form inputs and validation with Ant Design Form component.
+      </Paragraph>
+
+      <Card style={{ marginTop: 16, maxWidth: 600 }}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+        >
+          <Form.Item name="name" label="Full Name" rules={[{ required: true }]}>
+            <Input placeholder="Enter your name" />
+          </Form.Item>
+
+          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+            <Input placeholder="Enter your email" />
+          </Form.Item>
+
+          <Form.Item name="phone" label="Phone Number">
+            <Input placeholder="Enter phone number" />
+          </Form.Item>
+
+          <Form.Item name="description" label="Description">
+            <Input.TextArea rows={4} placeholder="Enter description" />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit">Submit</Button>
+              <Button onClick={() => form.resetFields()}>Reset</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Card>
+    </div>
+  );
+};
+
+// --- Analytics Page ---
+const AnalyticsPage = () => {
+  const chartData = [
+    { month: 'Jan', value: 30 },
+    { month: 'Feb', value: 45 },
+    { month: 'Mar', value: 28 },
+    { month: 'Apr', value: 60 },
+    { month: 'May', value: 55 },
+    { month: 'Jun', value: 80 },
+  ];
+
+  return (
+    <div>
+      <Title level={4}>Analytics</Title>
+      <Paragraph type="secondary">
+        View metrics and analytics data.
+      </Paragraph>
+
+      <Row gutter={16} style={{ marginTop: 16 }}>
+        <Col span={12}>
+          <Card title="Performance Metrics">
+            <div style={{ height: 200, display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+              {chartData.map((item, i) => (
+                <div key={i} style={{ flex: 1, textAlign: 'center' }}>
+                  <div style={{
+                    height: `${item.value * 2}px`,
+                    background: 'linear-gradient(180deg, #1890ff 0%, #69c0ff 100%)',
+                    borderRadius: 4
+                  }} />
+                  <Text type="secondary" style={{ fontSize: 12 }}>{item.month}</Text>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card title="Status Overview">
+            <Descriptions column={1}>
+              <Descriptions.Item label="Uptime">99.9%</Descriptions.Item>
+              <Descriptions.Item label="Response Time">45ms</Descriptions.Item>
+              <Descriptions.Item label="Error Rate">0.1%</Descriptions.Item>
+              <Descriptions.Item label="Active Users">1,234</Descriptions.Item>
+            </Descriptions>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+};
+
+// --- Main Layout ---
+const MainLayout = ({ children }) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const menuItems = [
+    { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/list', icon: <UnorderedListOutlined />, label: 'Data List' },
+    { key: '/form', icon: <FormOutlined />, label: 'Form' },
+    { key: '/analytics', icon: <BarChartOutlined />, label: 'Analytics' },
+  ];
+
+  const handleMenuClick = (e) => {
+    navigate(e.key);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+    message.info('Logged out successfully');
+  };
+
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider width={220} theme="light">
+        <div style={{
+          height: 64,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderBottom: '1px solid #f0f0f0'
+        }}>
+          <Title level={4} style={{ margin: 0 }}>Mock App</Title>
+        </div>
+        <Menu
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+          onClick={handleMenuClick}
+          style={{ borderRight: 0 }}
+        />
+      </Sider>
+      <Layout>
+        <Header style={{
+          background: '#fff',
+          padding: '0 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid #f0f0f0'
+        }}>
+          <Text strong>Work Buddy Test App</Text>
+          <Space>
+            <Text type="secondary">Welcome, {user?.name}</Text>
+            <Button icon={<LogoutOutlined />} onClick={handleLogout}>Logout</Button>
+          </Space>
+        </Header>
+        <Content style={{ margin: 24, padding: 24, background: '#fff', borderRadius: 8, minHeight: 280 }}>
+          {children}
+        </Content>
+      </Layout>
+    </Layout>
+  );
+};
+
+// --- App Component ---
+function App() {
+  const toolId = window.TOOL_ID || 'react-app';
+
+  // For mock tool pages (Jira, Confluence, etc.), render simple mock UI
+  if (toolId !== 'react-app') {
+    return (
+      <div style={{ padding: 24, minHeight: '100vh', background: '#f5f5f5' }}>
+        <Card>
+          <Title level={3}>Mock {toolId.toUpperCase()} Service</Title>
+          <Paragraph>This is a mock UI for {toolId}. For full testing, use the React App mode.</Paragraph>
+          <Form>
+            <Form.Item label="Search">
+              <Input.Search placeholder={`Search in ${toolId}...`} />
+            </Form.Item>
+          </Form>
+          <Button type="primary">Mock Action</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // Full React App with Ant Design for testing
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Routes>
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/list" element={<DataListPage />} />
+                    <Route path="/form" element={<FormPage />} />
+                    <Route path="/analytics" element={<AnalyticsPage />} />
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

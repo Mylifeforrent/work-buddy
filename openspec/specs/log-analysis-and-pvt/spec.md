@@ -11,6 +11,42 @@ The system SHALL perform PVT health checks at scheduled times (e.g., after upstr
 - **WHEN** a PVT health check finds missing keywords or login failures
 - **THEN** the system produces a PVT report with fail status, failed step details, screenshots showing the failure, and relevant log excerpts
 
+### Requirement: Cron-based scheduled PVT execution
+The system SHALL support scheduled PVT execution using cron expressions, allowing automatic health checks at configured times without manual triggering.
+
+#### Scenario: Enable scheduled PVT in configuration
+- **WHEN** user configures `pvt_schedule.enabled: true` and a cron expression in project config
+- **THEN** the system automatically triggers PVT health checks at the specified schedule
+
+#### Scenario: Disable scheduled PVT
+- **WHEN** user configures `pvt_schedule.enabled: false`
+- **THEN** the system does not trigger automatic PVT health checks (manual only)
+
+#### Scenario: Scheduled PVT with notification
+- **WHEN** a scheduled PVT completes
+- **THEN** the system can optionally notify configured channels (Slack, email, Jira comment)
+
+### Requirement: PVT schedule configuration
+The system SHALL support per-project PVT schedule configuration with:
+
+```yaml
+pvt_schedule:
+  enabled: true/false
+  cron: "0 6 * * *"  # Every day at 6 AM
+  timezone: "Asia/Shanghai"
+  notify:
+    slack_channel: "#alerts"
+    jira_comment: true
+```
+
+#### Scenario: Load PVT schedule from project config
+- **WHEN** the application starts
+- **THEN** it loads PVT schedule settings from each project's YAML configuration
+
+#### Scenario: Timezone-aware scheduling
+- **WHEN** a cron schedule is configured with a timezone
+- **THEN** the system executes PVT at the correct local time in that timezone
+
 ### Requirement: Triage production alerts via log correlation
 The system SHALL analyze production alerts by querying Grafana dashboards, Prometheus metrics, and OpenSearch logs, correlating data across sources to provide a triage recommendation.
 

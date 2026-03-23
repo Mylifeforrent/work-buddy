@@ -351,25 +351,165 @@ class BrowserTestAgent:
         """Run Postman collection using newman CLI and capture report."""
         if not project.postman or not project.postman.collection:
             return self._empty_package(project.name, "api_tests", "No Postman configuration")
-            
+
         print(f"Running Postman collection for {project.name}")
         report_file = os.path.join(self.output_dir, f"{project.name}_api_report.html")
-        
+
         cmd = ["newman", "run", project.postman.collection, "-r", "cli,htmlextra", "--reporter-htmlextra-export", report_file]
         if project.postman.environment:
             cmd.extend(["-e", project.postman.environment])
-            
+
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await process.communicate()
-        
+
         errors = []
         if process.returncode != 0:
             errors.append(f"Newman execution failed. Output: {stdout.decode()} Error: {stderr.decode()}")
-            
+
         pkg = self._create_package(project.name, "api_tests", "postman", [], errors)
         pkg.metadata["report_path"] = report_file
         return pkg
+
+    def generate_summary_report(self, packages: List[EvidencePackage], output_path: Optional[str] = None) -> str:
+        """Generate an HTML summary report aggregating all evidence packages.
+
+        Args:
+            packages: List of EvidencePackage objects to summarize
+            output_path: Optional path for the output file. Defaults to evidence/evidence_summary.html
+
+        Returns:
+            Path to the generated HTML report
+        """
+        if output_path is None:
+            output_path = os.path.join(self.output_dir, "evidence_summary.html")
+
+        timestamp = datetime.utcnow().isoformat() + "Z"
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>Work Buddy - Testing Evidence Summary</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }}
+        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        h1 {{ color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }}
+        h2 {{ color: #555; margin-top: 30px; }}
+        .summary {{ display: flex; gap: 20px; margin-bottom: 30px; }}
+        .stat {{ padding: 15px 25px; background: #f5f5f5; border-radius: 4px; text-align: center; }}
+        .stat-value {{ font-size: 24px; font-weight: bold; color: #333; }}
+        .stat-label {{ font-size: 12px; color: #666; text-transform: uppercase; }}
+        .package {{ margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 4px; }}
+        .passed {{ background: #e8f5e9; border-left: 4px solid #4CAF50; }}
+        .failed {{ background: #ffebee; border-left: 4px solid #f44336; }}
+        .meta {{ color: #666; font-size: 14px; }}
+        .screenshots {{ display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }}
+        .screenshot {{ border: 1px solid #eee; padding: 5px; }}
+        .screenshot img {{ max-width: 400px; height: auto; cursor: pointer; }}
+        .screenshot img:hover {{ opacity: 0.8; }}
+        .timestamp {{ color: #888; font-size: 12px; }}
+        .error-list {{ background: #fff3e0; padding: 10px; border-radius: 4px; margin-top: 10px; }}
+        .error-list li {{ color: #e65100; }}
+        .gif-preview {{ margin-top: 10px; }}
+        .gif-preview img {{ max-width: 300px; border: 1px solid #eee; border-radius: 4px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Work Buddy - Testing Evidence Summary</h1>
+        <p class="timestamp">Generated: {timestamp}</p>
+
+        <div class="summary">
+            <div class="stat">
+                <div class="stat-value">{len(packages)}</div>
+                <div class="stat-label">Total Flows</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" style="color: #4CAF50;">{sum(1 for p in packages if p.passed)}</div>
+                <div class="stat-label">Passed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" style="color: #f44336;">{sum(1 for p in packages if not p.passed)}</div>
+                <div class="stat-label">Failed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{sum(len(p.screenshots) for p in packages)}</div>
+                <div class="stat-label">Screenshots</div>
+            </div>
+        </div>
+"""
+
+        for pkg in packages:
+            status_class = "passed" if pkg.passed else "failed"
+            status_emoji = "✅" if pkg.passed else "❌"
+
+            html += f"""
+        <div class="package {status_class}">
+            <h3>{status_emoji} {pkg.project_name} - {pkg.flow_name}</h3>
+            <p class="meta">
+                <strong>Source Tool:</strong> {pkg.source_tool} |
+                <strong>Screenshots:</strong> {len(pkg.screenshots)} |
+                <strong>Recordings:</strong> {len(pkg.recordings)} |
+                <strong>GIFs:</strong> {len(pkg.gifs)}
+            </p>
+"""
+
+            if pkg.errors:
+                html += f"""
+            <div class="error-list">
+                <strong>Errors:</strong>
+                <ul>
+                    {"".join(f"<li>{e}</li>" for e in pkg.errors)}
+                </ul>
+            </div>
+"""
+
+            if pkg.screenshots:
+                html += """
+            <div class="screenshots">
+"""
+                for shot in pkg.screenshots:
+                    filename = os.path.basename(shot.path)
+                    html += f"""
+                <div class="screenshot">
+                    <p><strong>{shot.label}</strong></p>
+                    <a href="{filename}" target="_blank">
+                        <img src="{filename}" alt="{shot.label}" title="Click to view full size">
+                    </a>
+                </div>
+"""
+                html += """
+            </div>
+"""
+
+            if pkg.gifs:
+                html += """
+            <div class="gif-preview">
+                <p><strong>Animated Preview:</strong></p>
+"""
+                for gif in pkg.gifs:
+                    gif_filename = os.path.basename(gif.path)
+                    html += f"""
+                <img src="../gifs/{gif_filename}" alt="Test Flow Animation">
+"""
+                html += """
+            </div>
+"""
+
+            html += """
+        </div>
+"""
+
+        html += """
+    </div>
+</body>
+</html>
+"""
+
+        with open(output_path, 'w') as f:
+            f.write(html)
+
+        return output_path

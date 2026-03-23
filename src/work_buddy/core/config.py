@@ -125,6 +125,21 @@ class PostmanConfig(BaseModel):
     environment: Optional[str] = None
 
 
+class PVTNotifyConfig(BaseModel):
+    """Notification configuration for scheduled PVT."""
+    slack_channel: Optional[str] = None
+    jira_comment: bool = False
+    email: Optional[str] = None
+
+
+class PVTScheduleConfig(BaseModel):
+    """PVT schedule configuration for automated health checks."""
+    enabled: bool = False
+    cron: str = "0 6 * * *"  # Default: 6 AM daily
+    timezone: str = "Asia/Shanghai"
+    notify: PVTNotifyConfig = Field(default_factory=PVTNotifyConfig)
+
+
 class ProjectConfig(BaseModel):
     """Per-project configuration."""
     name: str
@@ -150,6 +165,9 @@ class ProjectConfig(BaseModel):
 
     # Postman (for backend services)
     postman: Optional[PostmanConfig] = None
+
+    # PVT Schedule (for automated health checks)
+    pvt_schedule: PVTScheduleConfig = Field(default_factory=PVTScheduleConfig)
 
 
 # ── Loaders ───────────────────────────────────────────────────────────────────

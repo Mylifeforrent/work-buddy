@@ -152,6 +152,15 @@ workbuddy release prepare --ticket PAY-1234 --repo ./ --since v1.0.0
 # Run PVT health check
 workbuddy pvt run --project payment-service
 
+# View PVT schedules
+workbuddy pvt schedule
+
+# View schedule for specific project
+workbuddy pvt schedule --project payment-service
+
+# Start the PVT scheduler daemon
+workbuddy pvt start-scheduler
+
 # Search Confluence docs
 workbuddy docs search "deployment process"
 
@@ -301,6 +310,63 @@ llm_model: qwen-plus  # or qwen-turbo, qwen-max
 ### Switching Providers
 
 Simply change the `llm_provider` and `llm_model` in `configs/app.yaml` and ensure the corresponding API key is set in your environment. The LLM factory will automatically configure the correct endpoint and authentication.
+
+## Scheduled PVT (Post Verification Testing)
+
+Work Buddy supports automated, cron-based PVT health checks. Configure scheduling per project to run automated health checks after maintenance windows or at regular intervals.
+
+### Enable Scheduled PVT
+
+Edit your project configuration (`configs/projects/<project>.yaml`):
+
+```yaml
+pvt_schedule:
+  enabled: true  # Set to false to disable
+  cron: "0 6 * * *"  # Run at 6 AM daily (cron expression)
+  timezone: "Asia/Shanghai"  # Timezone for schedule execution
+  notify:
+    slack_channel: "#payment-alerts"  # Optional: Slack notifications
+    jira_comment: true  # Optional: Post results as Jira comment
+    email: "team@example.com"  # Optional: Email notifications
+```
+
+### Cron Expression Examples
+
+| Expression | Description |
+|------------|-------------|
+| `0 6 * * *` | Daily at 6 AM |
+| `*/30 * * * *` | Every 30 minutes |
+| `0 9 * * 1-5` | Weekdays at 9 AM |
+| `0 0 1 * *` | Monthly on the 1st at midnight |
+
+### Managing the Scheduler
+
+```bash
+# View all project schedules
+workbuddy pvt schedule
+
+# View schedule for a specific project
+workbuddy pvt schedule --project payment-service
+
+# Start the scheduler daemon (runs in foreground)
+workbuddy pvt start-scheduler
+
+# Stop with Ctrl+C
+```
+
+### Scheduler Behavior
+
+- The scheduler runs as a long-lived background process
+- Each project with `enabled: true` gets its own scheduled task
+- Timezone-aware execution ensures checks run at the correct local time
+- On failure, errors are logged but the scheduler continues running
+- Notifications (Slack, Jira, email) are best-effort and don't block execution
+
+### Important Notes
+
+- The scheduler is designed for development/testing convenience, not production-grade scheduling
+- If the main process dies, scheduled tasks stop (no persistence)
+- For production reliability, consider running under systemd or a process manager
 
 ## License
 

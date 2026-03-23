@@ -245,6 +245,107 @@ def pvt_run(
         raise typer.Exit(1)
 
 
+@pvt_app.command("schedule")
+def pvt_schedule(
+    project: str = typer.Option(None, "--project", "-p", help="Project name (all if not specified)"),
+    enable: bool = typer.Option(None, "--enable/--disable", help="Enable or disable scheduled PVT"),
+    cron: str = typer.Option(None, "--cron", "-c", help="Cron expression (e.g., '0 6 * * *')"),
+    timezone: str = typer.Option(None, "--timezone", "-tz", help="Timezone (e.g., 'Asia/Shanghai')"),
+):
+    """Configure or view PVT schedule for projects."""
+    from work_buddy.core.scheduler import get_scheduler_status
+    from zoneinfo import ZoneInfo
+    from croniter import croniter
+
+    if project:
+        # Show/configure specific project
+        try:
+            proj_config = load_project_config(project)
+            schedule = proj_config.pvt_schedule
+
+            console.print(f"\n[bold]PVT Schedule for {project}:[/bold]")
+            console.print(f"  Enabled: {'[green]Yes[/green]' if schedule.enabled else '[red]No[/red]'}")
+            console.print(f"  Cron: {schedule.cron}")
+            console.print(f"  Timezone: {schedule.timezone}")
+
+            if cron or timezone or enable is not None:
+                console.print("\n[yellow]To update schedule, edit the project config file:[/yellow]")
+                console.print(f"  configs/projects/{project}.yaml")
+
+        except FileNotFoundError:
+            console.print(f"[red]Project '{project}' not found[/red]")
+            raise typer.Exit(1)
+    else:
+        # Show all projects with PVT schedules
+        status = get_scheduler_status()
+
+        table = Table(title="PVT Schedules")
+        table.add_column("Project", style="cyan")
+        table.add_column("Enabled")
+        table.add_column("Cron")
+        table.add_column("Timezone")
+        table.add_column("Next Run")
+
+        for proj_name, proj_status in status.get("projects", {}).items():
+            enabled = "[green]Yes[/green]" if proj_status.get("enabled") else "[red]No[/red]"
+            next_run = proj_status.get("next_run", "-") or "-"
+            table.add_row(
+                proj_name,
+                enabled,
+                proj_status.get("cron", "-"),
+                proj_status.get("timezone", "-"),
+                next_run[:19] if next_run and next_run != "-" else "-"
+            )
+
+        console.print(table)
+
+
+@pvt_app.command("start-scheduler")
+def pvt_start_scheduler():
+    """Start the PVT scheduler daemon."""
+    import asyncio
+    from work_buddy.core.scheduler import start_scheduler
+    from work_buddy.agents.log_analyst_agent import LogAnalystAgent
+    from work_buddy.core.container import create_container
+
+    setup_logging()
+    config = load_app_config()
+    container = create_container(config)
+
+    async def run_pvt(project):
+        """Run PVT for a project."""
+        try:
+            browser_agent = container.browser_test_agent
+            opensearch = container.opensearch_service
+            grafana = container.grafana_service
+
+            agent = LogAnalystAgent(browser_agent, opensearch, grafana)
+            return await agent.run_pvt_healthcheck(project)
+        except Exception as e:
+            logger.error(f"PVT failed for {project.name}: {e}")
+            return None
+
+    console.print("[bold]Starting PVT scheduler...[/bold]")
+
+    enabled_count = start_scheduler(run_pvt)
+
+    if enabled_count == 0:
+        console.print("[yellow]No projects have PVT scheduling enabled[/yellow]")
+        console.print("Enable scheduling in project config: pvt_schedule.enabled: true")
+        return
+
+    console.print(f"[green]Scheduler started with {enabled_count} project(s)[/green]")
+    console.print("Press Ctrl+C to stop")
+
+    try:
+        # Keep the process running
+        asyncio.get_event_loop().run_forever()
+    except KeyboardInterrupt:
+        from work_buddy.core.scheduler import stop_scheduler
+        stop_scheduler()
+        console.print("\n[yellow]Scheduler stopped[/yellow]")
+
+
 # ── Docs commands ─────────────────────────────────────────────────────────────
 
 @docs_app.command("search")

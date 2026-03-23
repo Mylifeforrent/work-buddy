@@ -68,3 +68,12 @@ grafana_checks:
 postman:
   collection: "collections/payment-service.json"
   environment: "environments/uat.json"
+
+# PVT Schedule - automated health checks after upstream maintenance
+pvt_schedule:
+  enabled: false  # Set to true to enable scheduled PVT
+  cron: "0 6 * * *"  # Run at 6 AM daily (after upstream maintenance window)
+  timezone: "Asia/Shanghai"
+  notify:
+    slack_channel: "#payment-alerts"
+    jira_comment: true
