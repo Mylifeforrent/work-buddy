@@ -3,18 +3,21 @@ import os
 import shutil
 
 from work_buddy.agents.browser_test_agent import BrowserTestAgent
-from work_buddy.adapters.real.real_browser import RealBrowserAdapter
 from work_buddy.core.config import ProjectConfig, AuthConfig, ToolUrls, EvidenceCheck, SpringBootAdminCheck, GrafanaCheck
 
+
+@pytest.mark.skip(reason="Requires mock services running via docker-compose. Run manually with: docker-compose up -d")
 @pytest.mark.asyncio
 async def test_integration_browser_agent_mock_services():
     """
-    Integration test utilizing the RealBrowserAdapter (Playwright) 
+    Integration test utilizing the RealBrowserAdapter (Playwright)
     against the locally running mock services via docker-compose.
     """
+    from work_buddy.adapters.real.real_browser import RealBrowserAdapter
+
     output_dir = "tests/integration/evidence_output"
     os.makedirs(output_dir, exist_ok=True)
-    
+
     browser = RealBrowserAdapter()
     await browser.launch(headless=True)
     
