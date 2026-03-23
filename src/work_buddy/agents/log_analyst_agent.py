@@ -1,23 +1,24 @@
 import os
 from typing import List, Dict, Any
 
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from work_buddy.agents.browser_test_agent import BrowserTestAgent
 from work_buddy.services.opensearch_service import OpenSearchService
 from work_buddy.services.grafana_service import GrafanaService
 from work_buddy.core.config import load_app_config, ProjectConfig
+from work_buddy.core.llm import get_llm
+
 
 class LogAnalystAgent:
     """Agent for automated alert triage and PVT (Post Verification Testing) health checks."""
-    
+
     def __init__(self, browser_agent: BrowserTestAgent, opensearch: OpenSearchService, grafana: GrafanaService):
         self.browser_agent = browser_agent
         self.opensearch = opensearch
         self.grafana = grafana
         self.app_config = load_app_config()
-        self.llm = ChatOpenAI(model=self.app_config.llm_model, temperature=0.1)
+        self.llm = get_llm(config=self.app_config, temperature=0.1)
 
     async def run_pvt_healthcheck(self, project: ProjectConfig) -> str:
         """Execute PVT and generate an HTML report."""

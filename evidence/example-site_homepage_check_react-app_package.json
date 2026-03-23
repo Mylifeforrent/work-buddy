@@ -1,0 +1,19 @@
+{
+  "project": "example-site",
+  "flow": "homepage_check",
+  "tool": "react-app",
+  "passed": true,
+  "errors": [],
+  "screenshots": [
+    {
+      "path": "evidence/example-site_homepage_check_homepage.png",
+      "label": "example-site_homepage_check_homepage",
+      "timestamp": "2026-03-23T13:11:19.055891Z",
+      "url": "https://example.com/",
+      "width": 1920,
+      "height": 1080
+    }
+  ],
+  "recordings": [],
+  "gifs": []
+}

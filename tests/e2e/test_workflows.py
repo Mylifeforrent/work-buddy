@@ -190,15 +190,15 @@ class TestAlertTriageE2E:
         grafana_mock.get_dashboard = AsyncMock(return_value={"panels": []})
 
         with patch("work_buddy.agents.log_analyst_agent.load_app_config") as mock_load, \
-             patch("work_buddy.agents.log_analyst_agent.ChatOpenAI") as mock_chat:
+             patch("work_buddy.agents.log_analyst_agent.get_llm") as mock_get_llm:
 
-            mock_load.return_value = MagicMock(llm_model="gpt-4o")
+            mock_load.return_value = MagicMock(llm_model="qwen-plus", llm_provider="dashscope")
 
             mock_llm = MagicMock()
             mock_llm.ainvoke = AsyncMock(return_value=AIMessage(
                 content="[NEEDS ATTENTION] Connection timeouts detected. Check database connectivity."
             ))
-            mock_chat.return_value = mock_llm
+            mock_get_llm.return_value = mock_llm
 
             agent = LogAnalystAgent(
                 browser_agent=browser_mock,

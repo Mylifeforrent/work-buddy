@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Work Buddy - Testing Evidence Summary</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
+        h2 { color: #555; margin-top: 30px; }
+        .package { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 4px; }
+        .passed { background: #e8f5e9; border-left: 4px solid #4CAF50; }
+        .failed { background: #ffebee; border-left: 4px solid #f44336; }
+        .meta { color: #666; font-size: 14px; }
+        .screenshots { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .screenshot { border: 1px solid #eee; padding: 5px; }
+        .screenshot img { max-width: 400px; height: auto; }
+        .timestamp { color: #888; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Work Buddy - Testing Evidence Summary</h1>
+        <p class="timestamp">Generated: 2026-03-23T21:12:07.087896</p>
+
+        <div class="package passed">
+            <h3>✅ example-site - homepage_check</h3>
+            <p class="meta">
+                <strong>Source Tool:</strong> react-app |
+                <strong>Screenshots:</strong> 1 |
+                <strong>Recordings:</strong> 0
+            </p>
+
+            <div class="screenshots">
+
+                <div class="screenshot">
+                    <p><strong>example-site_homepage_check_homepage</strong></p>
+                    <img src="example-site_homepage_check_homepage.png" alt="example-site_homepage_check_homepage">
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="package failed">
+            <h3>❌ httpbin-test - forms_test</h3>
+            <p class="meta">
+                <strong>Source Tool:</strong> react-app |
+                <strong>Screenshots:</strong> 3 |
+                <strong>Recordings:</strong> 0
+            </p>
+
+            <p><strong>Errors:</strong></p>
+            <ul>
+                <li>Step click failed: Page.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("button[type='submit']")
+</li>
+            </ul>
+
+            <div class="screenshots">
+
+                <div class="screenshot">
+                    <p><strong>httpbin-test_forms_test_form_initial</strong></p>
+                    <img src="httpbin-test_forms_test_form_initial.png" alt="httpbin-test_forms_test_form_initial">
+                </div>
+
+                <div class="screenshot">
+                    <p><strong>httpbin-test_forms_test_form_filled</strong></p>
+                    <img src="httpbin-test_forms_test_form_filled.png" alt="httpbin-test_forms_test_form_filled">
+                </div>
+
+                <div class="screenshot">
+                    <p><strong>httpbin-test_forms_test_FAILURE</strong></p>
+                    <img src="httpbin-test_forms_test_FAILURE.png" alt="httpbin-test_forms_test_FAILURE">
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</body>
+</html>

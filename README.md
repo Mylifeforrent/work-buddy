@@ -87,8 +87,12 @@ configs/
 ```yaml
 mode: mock  # Switch to "live" for production
 log_level: INFO
-llm_model: gpt-4o
 
+# LLM Configuration
+llm_provider: openai  # Options: openai, dashscope
+llm_model: gpt-4o     # OpenAI: gpt-4o, gpt-4-turbo | Qwen: qwen-turbo, qwen-plus, qwen-max
+
+# Mock server URLs (used when mode: mock)
 mock_jira_url: "http://localhost:8081"
 mock_confluence_url: "http://localhost:8082"
 mock_sso_url: "http://localhost:8090"
@@ -172,16 +176,63 @@ Evidence Flow:
 
 ## Testing
 
+### Run All Tests
+
 ```bash
-# Unit tests
+# Unit tests (fast, mocked dependencies)
 pytest tests/unit -v
 
-# Integration tests
+# Integration tests (mocked services)
 pytest tests/integration -v
 
 # E2E tests (requires mock services)
 docker-compose up -d
 pytest tests/e2e -v
+
+# All tests with coverage
+pytest tests/ -v --cov=src/work_buddy --cov-report=html
+```
+
+### Testing Individual Agents
+
+Each agent has dedicated unit tests that can be run independently:
+
+```bash
+# Test browser automation agent
+pytest tests/unit/test_browser_agent.py -v
+
+# Test Jira task agent
+pytest tests/unit/test_jira_agent.py -v
+
+# Test ICE compliance agent
+pytest tests/unit/test_ice_compliance.py -v
+
+# Test release prep agent
+pytest tests/unit/test_release_prep.py -v
+
+# Test log analyst agent
+pytest tests/unit/test_log_analyst.py -v
+
+# Test Confluence RAG agent
+pytest tests/unit/test_confluence_rag.py -v
+
+# Test evidence gatherer
+pytest tests/unit/test_evidence_gatherer.py -v
+```
+
+### Running with Different LLM Providers
+
+Tests mock the LLM calls, so no API key is required for testing. However, to test with real LLM responses:
+
+```bash
+# With OpenAI
+export OPENAI_API_KEY="your-key"
+pytest tests/ -v -k "not mock"
+
+# With Qwen/DashScope
+export DASHSCOPE_API_KEY="your-key"
+# Update configs/app.yaml to use llm_provider: dashscope
+pytest tests/ -v -k "not mock"
 ```
 
 ## Switching to Production
@@ -206,9 +257,50 @@ mode: live
 
 ## Environment Variables
 
+Work Buddy supports multiple LLM providers. Set the appropriate environment variable based on your chosen provider:
+
+### OpenAI (Default)
+
 ```bash
-export OPENAI_API_KEY="your-api-key"
+export OPENAI_API_KEY="your-openai-api-key"
 ```
+
+Configure in `configs/app.yaml`:
+```yaml
+llm_provider: openai
+llm_model: gpt-4o  # or gpt-4-turbo, gpt-3.5-turbo
+```
+
+### DashScope / Qwen (Alibaba Cloud)
+
+DashScope provides Qwen models with an OpenAI-compatible API.
+
+```bash
+export DASHSCOPE_API_KEY="your-dashscope-api-key"
+```
+
+Configure in `configs/app.yaml`:
+```yaml
+llm_provider: dashscope
+llm_model: qwen-plus  # or qwen-turbo, qwen-max
+```
+
+**Available Qwen Models:**
+| Model | Description | Best For |
+|-------|-------------|----------|
+| `qwen-turbo` | Fast, cost-effective | Simple tasks, high volume |
+| `qwen-plus` | Balanced performance | General purpose (recommended) |
+| `qwen-max` | Most capable | Complex reasoning, analysis |
+
+**Getting a DashScope API Key:**
+1. Visit [DashScope Console](https://dashscope.console.aliyun.com/)
+2. Create an account or sign in
+3. Navigate to API Key Management
+4. Create a new API key
+
+### Switching Providers
+
+Simply change the `llm_provider` and `llm_model` in `configs/app.yaml` and ensure the corresponding API key is set in your environment. The LLM factory will automatically configure the correct endpoint and authentication.
 
 ## License
 

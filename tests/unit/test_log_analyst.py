@@ -32,14 +32,14 @@ def mock_grafana():
 
 @pytest.fixture
 @patch("work_buddy.agents.log_analyst_agent.load_app_config")
-@patch("work_buddy.agents.log_analyst_agent.ChatOpenAI")
-def agent(mock_chat_openai, mock_load_config, mock_browser_agent, mock_opensearch, mock_grafana):
-    mock_load_config.return_value = AppConfig(mode="mock", llm_model="gpt-4")
+@patch("work_buddy.agents.log_analyst_agent.get_llm")
+def agent(mock_get_llm, mock_load_config, mock_browser_agent, mock_opensearch, mock_grafana):
+    mock_load_config.return_value = AppConfig(mode="mock", llm_model="qwen-plus", llm_provider="dashscope")
 
     # Mock the LLM
     mock_llm = MagicMock()
     mock_llm.ainvoke = AsyncMock(return_value=AIMessage(content="[CRITICAL] DB is down."))
-    mock_chat_openai.return_value = mock_llm
+    mock_get_llm.return_value = mock_llm
 
     ag = LogAnalystAgent(mock_browser_agent, mock_opensearch, mock_grafana)
     return ag

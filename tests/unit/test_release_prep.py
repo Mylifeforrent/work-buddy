@@ -20,14 +20,14 @@ def mock_compliance():
 
 @pytest.fixture
 @patch("work_buddy.agents.release_prep_agent.load_app_config")
-@patch("work_buddy.agents.release_prep_agent.ChatOpenAI")
-def agent(mock_chat_openai, mock_load_config, mock_jira, mock_compliance):
-    mock_load_config.return_value = AppConfig(mode="mock", llm_model="gpt-3.5-mock")
+@patch("work_buddy.agents.release_prep_agent.get_llm")
+def agent(mock_get_llm, mock_load_config, mock_jira, mock_compliance):
+    mock_load_config.return_value = AppConfig(mode="mock", llm_model="qwen-plus", llm_provider="dashscope")
 
     # Mock the LLM
     mock_llm = MagicMock()
     mock_llm.ainvoke = AsyncMock(return_value=AIMessage(content="Generated mock text."))
-    mock_chat_openai.return_value = mock_llm
+    mock_get_llm.return_value = mock_llm
 
     ag = ReleasePrepAgent(jira_service=mock_jira, compliance_agent=mock_compliance)
     return ag

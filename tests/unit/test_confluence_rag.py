@@ -42,16 +42,24 @@ def mock_confluence():
 
 @pytest.fixture
 @patch("work_buddy.agents.confluence_rag_agent.load_app_config")
-@patch("work_buddy.agents.confluence_rag_agent.OpenAIEmbeddings")
-@patch("work_buddy.agents.confluence_rag_agent.ChatOpenAI")
+@patch("work_buddy.agents.confluence_rag_agent.get_embeddings")
+@patch("work_buddy.agents.confluence_rag_agent.get_llm")
 @patch("work_buddy.agents.confluence_rag_agent.Chroma")
-def agent(mock_chroma, mock_llm, mock_emb, mock_load, mock_confluence):
+def agent(mock_chroma, mock_get_llm, mock_get_emb, mock_load, mock_confluence):
     """Create a ConfluenceRagAgent with mocked dependencies."""
-    mock_load.return_value = AppConfig(mode="mock", llm_model="gpt-4o")
+    mock_load.return_value = AppConfig(mode="mock", llm_model="qwen-plus", llm_provider="dashscope")
 
     # Mock Chroma
     mock_vs = MagicMock()
     mock_chroma.return_value = mock_vs
+
+    # Mock LLM
+    mock_llm = MagicMock()
+    mock_get_llm.return_value = mock_llm
+
+    # Mock embeddings
+    mock_emb = MagicMock()
+    mock_get_emb.return_value = mock_emb
 
     ag = ConfluenceRagAgent(mock_confluence, persist_directory="/tmp/chroma")
     return ag

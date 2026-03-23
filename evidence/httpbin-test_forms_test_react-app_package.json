@@ -1,0 +1,37 @@
+{
+  "project": "httpbin-test",
+  "flow": "forms_test",
+  "tool": "react-app",
+  "passed": false,
+  "errors": [
+    "Step click failed: Page.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"button[type='submit']\")\n"
+  ],
+  "screenshots": [
+    {
+      "path": "evidence/httpbin-test_forms_test_form_initial.png",
+      "label": "httpbin-test_forms_test_form_initial",
+      "timestamp": "2026-03-23T13:11:31.749205Z",
+      "url": "https://httpbin.org/forms/post",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "path": "evidence/httpbin-test_forms_test_form_filled.png",
+      "label": "httpbin-test_forms_test_form_filled",
+      "timestamp": "2026-03-23T13:11:35.962050Z",
+      "url": "https://httpbin.org/forms/post",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "path": "evidence/httpbin-test_forms_test_FAILURE.png",
+      "label": "httpbin-test_forms_test_FAILURE",
+      "timestamp": "2026-03-23T13:12:07.086756Z",
+      "url": "https://httpbin.org/forms/post",
+      "width": 1920,
+      "height": 1080
+    }
+  ],
+  "recordings": [],
+  "gifs": []
+}

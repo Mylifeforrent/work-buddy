@@ -23,7 +23,8 @@ def mock_config():
         mock_jira_url="http://localhost:8081",
         mock_confluence_url="http://localhost:8082",
         mock_sso_url="http://localhost:8090",
-        llm_model="gpt-4o"
+        llm_model="qwen-plus",
+        llm_provider="dashscope"
     )
 
 

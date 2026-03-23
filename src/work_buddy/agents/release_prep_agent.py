@@ -2,22 +2,22 @@ import os
 import subprocess
 from typing import List, Dict, Optional, Tuple
 
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from work_buddy.services.jira_service import JiraService, JiraTicket
 from work_buddy.agents.ice_compliance_agent import IceComplianceAgent
 from work_buddy.core.config import ProjectConfig, load_project_config, load_app_config
+from work_buddy.core.llm import get_llm
+
 
 class ReleasePrepAgent:
     """Agent that prepares Jira CR tickets by generating release documentation using LLM and git history."""
-    
+
     def __init__(self, jira_service: JiraService, compliance_agent: IceComplianceAgent):
         self.jira = jira_service
         self.compliance = compliance_agent
-        app_config = load_app_config()
-        # Mock LLM calls if in a totally constrained environment, but otherwise use LangChain
-        self.llm = ChatOpenAI(model=app_config.llm_model, temperature=0.2)
+        self.app_config = load_app_config()
+        self.llm = get_llm(config=self.app_config, temperature=0.2)
         
     def _parse_git_history(self, repo_path: str, since_tag: str, until_tag: str = "HEAD") -> str:
         """Parse git commits between two tags/commits."""

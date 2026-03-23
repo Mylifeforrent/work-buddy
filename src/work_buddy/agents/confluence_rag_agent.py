@@ -1,7 +1,7 @@
 import os
 from typing import List, Dict, Tuple, Optional
 
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -11,20 +11,20 @@ from langchain_core.runnables import RunnablePassthrough
 
 from work_buddy.services.confluence_service import ConfluenceService
 from work_buddy.core.config import load_app_config
+from work_buddy.core.llm import get_llm, get_embeddings
 
 
 class ConfluenceRagAgent:
     """Agent that retrieves and answers questions based on Confluence documentation using RAG."""
-    
+
     def __init__(self, confluence: ConfluenceService, persist_directory: str = ".chroma_db"):
         self.confluence = confluence
         self.app_config = load_app_config()
         self.persist_directory = persist_directory
-        
-        # In a constrained mock environment, API keys might be missing, 
-        # so instantiation happens but might fail if called without keys
-        self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        self.llm = ChatOpenAI(model=self.app_config.llm_model, temperature=0.0)
+
+        # Use LLM factory for multi-provider support
+        self.embeddings = get_embeddings(config=self.app_config)
+        self.llm = get_llm(config=self.app_config, temperature=0.0)
         
         os.makedirs(persist_directory, exist_ok=True)
         self.vectorstore = Chroma(
