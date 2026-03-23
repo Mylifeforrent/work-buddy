@@ -246,53 +246,30 @@ class RealBrowserAdapter(BrowserService):
             return ""
 
         # Check if ffmpeg is available
-        if not shutil.which("ffmpeg"):
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
             print("Warning: ffmpeg not found. Skipping GIF conversion.")
             return ""
 
         try:
-            # ffmpeg command: video → palette-based GIF for quality
-            palette_path = video_path + ".palette.png"
-
-            # Step 1: Generate palette for high-quality GIF
-            palette_cmd = [
-                "ffmpeg", "-y", "-i", video_path,
-                "-vf", f"fps={fps},scale={scale}:-1:flags=lanczos,palettegen",
-                palette_path
-            ]
-
-            # Step 2: Use palette to create GIF
-            gif_cmd = [
-                "ffmpeg", "-y", "-i", video_path, "-i", palette_path,
-                "-lavfi", f"fps={fps},scale={scale}:-1:flags=lanczos [x]; [x][1:v] paletteuse",
+            # Simple conversion (reliable)
+            simple_cmd = [
+                ffmpeg_path, "-y", "-i", video_path,
+                "-vf", f"fps={fps},scale={scale}:-1",
                 gif_path
             ]
 
-            # Run palette generation
+            # Run conversion
             process = await asyncio.create_subprocess_exec(
-                *palette_cmd,
+                *simple_cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            await process.communicate()
+            stdout, stderr = await process.communicate()
 
             if process.returncode != 0:
-                # Fallback: simple conversion without palette
-                simple_cmd = [
-                    "ffmpeg", "-y", "-i", video_path,
-                    "-vf", f"fps={fps},scale={scale}:-1",
-                    gif_path
-                ]
-                process = await asyncio.create_subprocess_exec(
-                    *simple_cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                await process.communicate()
-
-            # Clean up palette file
-            if os.path.exists(palette_path):
-                os.remove(palette_path)
+                print(f"Warning: GIF conversion failed with code {process.returncode}")
+                return ""
 
             if os.path.exists(gif_path):
                 return gif_path
