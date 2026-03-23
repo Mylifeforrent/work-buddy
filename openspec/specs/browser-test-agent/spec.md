@@ -106,3 +106,46 @@ The system SHALL check login status before executing UI test flows and handle au
 #### Scenario: Mock login page for testing
 - **WHEN** testing against mock services
 - **THEN** a mock login page is available at `/login` accepting any credentials
+
+### Requirement: Video recording with visible mouse cursor
+The system SHALL record video of browser test flows with a visible mouse cursor overlay, allowing viewers to see exactly where clicks and interactions occur.
+
+#### Scenario: Mouse cursor visible in recordings
+- **WHEN** a browser test flow is recorded
+- **THEN** the recording shows a visual cursor indicator at all interaction points
+- **AND** the cursor highlights when a click action is performed
+
+#### Scenario: Cursor follows element interactions
+- **WHEN** the browser agent clicks or types into an element
+- **THEN** the cursor overlay moves to the element's location before the action
+
+### Requirement: GIF preview generation from recordings
+The system SHALL convert video recordings to GIF format for easy sharing and embedding in reports.
+
+#### Scenario: Generate GIF from video recording
+- **WHEN** a test flow recording completes
+- **THEN** the system converts the WebM video to an animated GIF using ffmpeg
+- **AND** the GIF is saved alongside the video recording
+
+#### Scenario: GIF conversion gracefully handles missing ffmpeg
+- **WHEN** ffmpeg is not installed on the system
+- **THEN** the system logs a warning and continues without GIF generation
+- **AND** the WebM video is still available
+
+### Requirement: Professional enterprise UI styling
+The system's mock React UI SHALL present a polished, professional appearance with proper theming, responsive layouts, and visual feedback.
+
+#### Scenario: Mock UI uses consistent theming
+- **WHEN** mock React UI pages are rendered
+- **THEN** they use a consistent color scheme with proper contrast
+- **AND** components have appropriate spacing, shadows, and border radius
+
+#### Scenario: Mock UI provides visual feedback
+- **WHEN** users interact with mock UI components
+- **THEN** hover states, loading indicators, and transition animations are visible
+- **AND** the UI responds to user actions with appropriate visual cues
+
+#### Scenario: Mock UI dashboard shows realistic data
+- **WHEN** the dashboard page is displayed
+- **THEN** it shows statistics, charts, and data visualizations
+- **AND** all interactive elements are properly styled

@@ -10,7 +10,7 @@
     {
       "path": "evidence/httpbin-test_forms_test_form_initial.png",
       "label": "httpbin-test_forms_test_form_initial",
-      "timestamp": "2026-03-23T14:47:06.607955Z",
+      "timestamp": "2026-03-23T14:51:31.752412Z",
       "url": "https://httpbin.org/forms/post",
       "width": 1920,
       "height": 1080
@@ -18,7 +18,7 @@
     {
       "path": "evidence/httpbin-test_forms_test_form_filled.png",
       "label": "httpbin-test_forms_test_form_filled",
-      "timestamp": "2026-03-23T14:47:11.376897Z",
+      "timestamp": "2026-03-23T14:51:36.284021Z",
       "url": "https://httpbin.org/forms/post",
       "width": 1920,
       "height": 1080
@@ -26,7 +26,7 @@
     {
       "path": "evidence/httpbin-test_forms_test_FAILURE.png",
       "label": "httpbin-test_forms_test_FAILURE",
-      "timestamp": "2026-03-23T14:47:42.602769Z",
+      "timestamp": "2026-03-23T14:52:07.404262Z",
       "url": "https://httpbin.org/forms/post",
       "width": 1920,
       "height": 1080
@@ -34,23 +34,23 @@
   ],
   "recordings": [
     {
-      "path": "evidence/recordings/httpbin-test_forms_test_20260323_144742.webm",
+      "path": "evidence/recordings/httpbin-test_forms_test_20260323_145207.webm",
       "format": "webm",
       "label": "httpbin-test_forms_test",
-      "timestamp": "2026-03-23T14:47:42.801099Z",
+      "timestamp": "2026-03-23T14:52:07.566942Z",
       "duration_seconds": 0.0,
-      "size_bytes": 938995,
+      "size_bytes": 705619,
       "url": ""
     }
   ],
   "gifs": [
     {
-      "path": "evidence/gifs/httpbin-test_forms_test_20260323_144742.gif",
+      "path": "evidence/gifs/httpbin-test_forms_test_20260323_145207.gif",
       "format": "gif",
       "label": "httpbin-test_forms_test_preview",
-      "timestamp": "2026-03-23T14:47:42.801099Z",
+      "timestamp": "2026-03-23T14:52:07.566942Z",
       "duration_seconds": 0.0,
-      "size_bytes": 276916,
+      "size_bytes": 223763,
       "url": ""
     }
   ]

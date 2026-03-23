@@ -74,6 +74,79 @@ configs/
 | **Jira Task Agent** | Automated task creation with templates and field population |
 | **Evidence Gatherer** | Collects test evidence and posts to Jira |
 | **Browser Test Agent** | Playwright-based UI testing, screenshot capture, video recording & GIF conversion |
+
+### Evidence Generation
+
+Work Buddy captures comprehensive testing evidence including:
+
+| Evidence Type | Description | Location |
+|---------------|-------------|----------|
+| **Screenshots** | PNG images at each test step | `evidence/*.png` |
+| **Video Recordings** | WebM videos of test flows | `evidence/recordings/` |
+| **GIF Previews** | Animated GIFs for easy sharing | `evidence/gifs/` |
+| **Summary Reports** | HTML report aggregating all evidence | `evidence/evidence_summary.html` |
+
+#### Video Recording Features
+
+- **Visible Mouse Cursor**: Recordings show a cursor overlay that moves to each element before clicking, making it easy to follow the test flow
+- **Click Animation**: Cursor changes color and size when clicking to highlight interactions
+- **GIF Conversion**: Videos are automatically converted to GIF format for embedding in reports
+
+#### Requirements for GIF Conversion
+
+GIF conversion requires `ffmpeg`. Install it with:
+
+```bash
+# macOS
+brew install ffmpeg
+
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# Windows (with Chocolatey)
+choco install ffmpeg
+```
+
+If ffmpeg is not installed, video recordings will still be generated (WebM format), but GIF conversion will be skipped.
+
+#### Generating Evidence
+
+```bash
+# Run the evidence generator script
+python3 scripts/generate_evidence.py
+```
+
+### Mock React UI
+
+Work Buddy includes a realistic enterprise mock React UI built with Ant Design for testing browser automation. The mock UI simulates common enterprise application patterns.
+
+#### Features
+
+| Page | Description | Components Used |
+|------|-------------|-----------------|
+| **Login** | Authentication with any credentials | Form, Input, Button |
+| **Dashboard** | Statistics, charts, recent activity | Cards, Statistic, List, Progress |
+| **Data List** | Sortable table with row selection | Table, Tag, Button, Search |
+| **Form** | Multi-field form with validation | Form, Input, TextArea |
+| **Analytics** | Charts and metrics visualization | Bar charts, Progress, Descriptions |
+
+#### UI Styling
+
+- **Consistent Theming**: Uses Ant Design's ConfigProvider with custom theme tokens
+- **Professional Appearance**: Shadows, gradients, hover effects, proper spacing
+- **Visual Feedback**: Loading states, transition animations, hover highlights
+- **Responsive Layout**: Collapsible sidebar, mobile-friendly design
+
+#### Running the Mock UI
+
+```bash
+# Start the mock UI development server
+cd mock_servers/ui
+npm install
+npm run dev
+```
+
+The mock UI will be available at `http://localhost:5173`. Use any username/password to log in.
 | **ICE Compliance Agent** | Validates tickets against compliance rules |
 | **Release Prep Agent** | Generates release notes, rollback steps, PVT steps |
 | **Confluence RAG Agent** | Semantic search and summarization of documentation |

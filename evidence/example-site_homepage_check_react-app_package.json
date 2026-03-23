@@ -8,7 +8,7 @@
     {
       "path": "evidence/example-site_homepage_check_homepage.png",
       "label": "example-site_homepage_check_homepage",
-      "timestamp": "2026-03-23T14:46:43.394333Z",
+      "timestamp": "2026-03-23T14:51:16.796842Z",
       "url": "https://example.com/",
       "width": 1920,
       "height": 1080
@@ -16,23 +16,23 @@
   ],
   "recordings": [
     {
-      "path": "evidence/recordings/example-site_homepage_check_20260323_144646.webm",
+      "path": "evidence/recordings/example-site_homepage_check_20260323_145119.webm",
       "format": "webm",
       "label": "example-site_homepage_check",
-      "timestamp": "2026-03-23T14:46:46.275658Z",
+      "timestamp": "2026-03-23T14:51:19.173781Z",
       "duration_seconds": 0.0,
-      "size_bytes": 68094,
+      "size_bytes": 57695,
       "url": ""
     }
   ],
   "gifs": [
     {
-      "path": "evidence/gifs/example-site_homepage_check_20260323_144646.gif",
+      "path": "evidence/gifs/example-site_homepage_check_20260323_145119.gif",
       "format": "gif",
       "label": "example-site_homepage_check_preview",
-      "timestamp": "2026-03-23T14:46:46.275658Z",
+      "timestamp": "2026-03-23T14:51:19.173781Z",
       "duration_seconds": 0.0,
-      "size_bytes": 53426,
+      "size_bytes": 30841,
       "url": ""
     }
   ]
