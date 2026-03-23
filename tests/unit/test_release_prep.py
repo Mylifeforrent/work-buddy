@@ -20,11 +20,16 @@ def mock_compliance():
 
 @pytest.fixture
 @patch("work_buddy.agents.release_prep_agent.load_app_config")
-def agent(mock_load_config, mock_jira, mock_compliance):
+@patch("work_buddy.agents.release_prep_agent.ChatOpenAI")
+def agent(mock_chat_openai, mock_load_config, mock_jira, mock_compliance):
     mock_load_config.return_value = AppConfig(mode="mock", llm_model="gpt-3.5-mock")
+
+    # Mock the LLM
+    mock_llm = MagicMock()
+    mock_llm.ainvoke = AsyncMock(return_value=AIMessage(content="Generated mock text."))
+    mock_chat_openai.return_value = mock_llm
+
     ag = ReleasePrepAgent(jira_service=mock_jira, compliance_agent=mock_compliance)
-    # Mock LLM to avoid real API calls
-    ag.llm.ainvoke = AsyncMock(return_value=AIMessage(content="Generated mock text."))
     return ag
 
 @pytest.mark.asyncio
@@ -41,19 +46,19 @@ async def test_prepare_release_ticket_success(agent, mock_jira):
         key="CR-123", project="PROJ", summary="Release", epic_link="EPIC-1"
     ))
     mock_jira.update_description = AsyncMock()
-    
+
     # Mock git parser
     agent._parse_git_history = MagicMock(return_value="git history")
-    
+
     def mock_confirm(msg):
         return True
-        
+
     success = await agent.prepare_release_ticket("CR-123", "/tmp/repo", "v1.0.0", mock_confirm)
-    
+
     assert success is True
     agent.compliance.validate_ticket.assert_called_once_with("CR-123")
     mock_jira.update_description.assert_called_once()
-    
+
     updated_desc = mock_jira.update_description.call_args[0][1]
     assert "h2. Background" in updated_desc
     assert "h2. Release Notes" in updated_desc
@@ -62,6 +67,6 @@ async def test_prepare_release_ticket_success(agent, mock_jira):
 @pytest.mark.asyncio
 async def test_prepare_release_ticket_fails_compliance(agent):
     agent.compliance.validate_ticket.return_value = (False, ["Gap1"])
-    
+
     success = await agent.prepare_release_ticket("CR-123", "/tmp/repo", "v1.0.0", lambda x: True)
     assert success is False

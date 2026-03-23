@@ -31,7 +31,7 @@ A multi-agent system ("Work Buddy") can automate the majority of this work. The 
 - `confluence-doc-retrieval`: RAG-enhanced search and retrieval of project specs and articles from Confluence pages
 - `log-analysis-and-pvt`: Production alert triage via Grafana/Prometheus/OpenSearch log correlation, plus scheduled PVT health checks with screenshot capture and keyword verification
 - `agent-coordinator`: Orchestration layer that routes user requests to appropriate agents, manages inter-agent data flow, and provides a unified CLI interface
-- `mock-services`: Complete mock implementations of all external services (Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin, SSO) with realistic data, enabling fully local development and testing
+- `mock-services`: Complete mock implementations of all external services (Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin, SSO) as React-based web applications with realistic UIs and simulated APIs, enabling fully local development and visual verification of agent browser flows
 - `service-abstractions`: Hexagonal architecture with service interfaces (ports) and pluggable adapters, allowing one-config switch between mock and real implementations
 - `mcp-service-transport`: MCP (Model Context Protocol) server integration for external services — Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin can be accessed via MCP servers as an alternative transport layer, enabling AI coding assistants to directly invoke Work Buddy capabilities as MCP tools
 - `video-gif-evidence`: Video recording (WebM) and GIF screenshot capture during browser test flows — Playwright native video recording with ffmpeg-based GIF conversion, providing full video for detailed review and GIF previews for Jira evidence comments

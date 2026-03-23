@@ -157,3 +157,16 @@
 - [ ] 15.6 Update README.md architecture diagram with video/GIF recording capability
 - [ ] 15.7 Write unit tests for recording lifecycle in test_browser_agent.py
 
+## 16. React-based Mock Services Implementation
+
+- [ ] 16.1 Create unified React project structure in `mock_servers/ui`
+- [ ] 16.2 Implement Mock SSO UI (Login page)
+- [ ] 16.3 Implement Mock Jira UI (Issue dashboard/view)
+- [ ] 16.4 Implement Mock Confluence UI (Page list/view)
+- [ ] 16.5 Implement Mock OpenSearch UI (Logs/Dashboards)
+- [ ] 16.6 Implement Mock SpringBoot Admin UI (Health dashboard)
+- [ ] 16.7 Implement Mock Grafana UI (Metrics dashboards)
+- [ ] 16.8 Update Python mock servers to serve React build as static files
+- [ ] 16.9 Update Dockerfiles for multi-stage React builds
+- [ ] 16.10 Verify browser agent navigation and screenshot capture against React UIs
+

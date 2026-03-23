@@ -161,7 +161,8 @@ workbuddy alert triage --service payment-service
 - **10+ project configs** → Maintaining YAML configs for 13+ projects requires discipline. Provide config validation tooling and templates.
 - **LLM output quality for release notes** → Always present generated content for human review before posting to Jira.
 - **Multiple monitoring tool instances** → Projects mapping to different tool URLs adds configuration complexity. Validate configs at startup.
-- **Docker resource usage** → Running 6+ mock services locally requires reasonable system resources. Keep mock servers lightweight.
+- **Docker resource usage** → Running 6+ mock services locally (now as React apps with backends) requires reasonable system resources. Use multi-stage builds and optimized base images to keep containers lightweight.
+- **Video recording storage** → WebM videos + GIF conversions increase storage requirements. Implement cleanup policies for old evidence.
 - **Video recording storage** → WebM videos + GIF conversions increase storage requirements. Implement cleanup policies for old evidence.
 - **ffmpeg dependency** → GIF conversion requires ffmpeg installed on the host. Document this as a prerequisite; provide graceful fallback (video-only) if not available.
 - **MCP server availability** → MCP integration adds dependency on MCP server implementations. If MCP server is unavailable, fall back to direct adapter pattern.
@@ -240,3 +241,17 @@ The hexagonal architecture already supports this naturally — the MCP client ad
 - `ffmpeg` subprocess for WebM → GIF conversion (configurable FPS, scale)
 - `EvidencePackage` extended with `recordings` (WebM) and `gifs` (GIF) fields
 - Graceful fallback: if ffmpeg is unavailable, skip GIF conversion, keep video only
+
+### 11. React-based Mock Services
+
+**Decision**: Implement mock versions of Jira, Confluence, OpenSearch, Grafana, SpringBoot Admin, and Corporate SSO as **React-based web applications**. Each mock service will consist of a React frontend served by a lightweight backend (FastAPI or similar).
+
+**Rationale**:
+- **Visual Verification**: The `BrowserTestAgent` needs a real UI to navigate, click, and document. React provides a modern, interactive surface for these agents to "see" and record.
+- **High-Fidelity Mocks**: Static HTML is insufficient for simulating complex enterprise tool behaviors (searching, filtering, navigation). A React UI allows for a better simulation of UI state changes.
+- **Recording/Evidence**: Since Work Buddy V2 records video/GIF evidence, having "premium" looking mock UIs makes the evidence package professional and meaningful for local development.
+
+**Implementation**:
+- **Vite + React**: Used for each mock tool's UI.
+- **Unified API & Frontend**: Each service container builds and serves the React assets while exposing the necessary REST API endpoints at their respective paths (e.g., `/rest/api/3/...` for Jira).
+- **Docker Integration**: Updated `docker-compose.yml` and `Dockerfiles` to handle the React build process.

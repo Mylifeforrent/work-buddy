@@ -1,12 +1,36 @@
 import logging
+import os
 from typing import Optional, List, Dict
 from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mock_sba")
 
 app = FastAPI(title="Mock SpringBoot Admin Server")
+
+# Load the built React UI
+UI_DIST = os.path.join(os.path.dirname(__file__), "..", "ui", "dist")
+
+def get_ui_html(tool_id: str):
+    index_path = os.path.join(UI_DIST, "index.html")
+    if not os.path.exists(index_path):
+        return HTMLResponse("UI not built. Run 'npm run build' in mock_servers/ui", status_code=500)
+    with open(index_path, "r") as f:
+        content = f.read()
+    return HTMLResponse(content.replace("<!-- TOOL_ID -->", tool_id))
+
+app.mount("/assets", StaticFiles(directory=os.path.join(UI_DIST, "assets")), name="assets")
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return get_ui_html("springboot_admin")
+
+@app.get("/applications", response_class=HTMLResponse)
+async def applications_ui():
+    logger.info("GET /applications")
+    return get_ui_html("springboot_admin")
 
 SERVICES = {
     "payment-service": {
@@ -25,47 +49,10 @@ SERVICES = {
     }
 }
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Spring Boot Admin</title>
-    <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; }
-        .service-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
-        .status-UP { color: green; font-weight: bold; }
-        .status-DOWN { color: red; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <h2>Spring Boot Admin (Mock)</h2>
-    <div id="services-list">
-        {content}
-    </div>
-</body>
-</html>
-"""
-
 @app.on_event("startup")
 async def load_seed_data():
     # TODO: Load from seed_data/sba.yaml
     pass
-
-@app.get("/applications", response_class=HTMLResponse)
-async def applications_ui():
-    logger.info("GET /applications")
-    content = ""
-    for name, data in SERVICES.items():
-        status = data["status"]
-        r2db = data["details"]["r2db_status"]
-        content += f'''
-        <div class="service-card" id="service-{name}">
-            <h3>{name}</h3>
-            <p>Overall Status: <span class="status-{status}">{status}</span></p>
-            <p>R2DB Status: <span class="status-{r2db}">{r2db}</span></p>
-        </div>
-        '''
-    return HTML_TEMPLATE.replace("{content}", content)
 
 @app.get("/api/applications")
 async def api_applications():

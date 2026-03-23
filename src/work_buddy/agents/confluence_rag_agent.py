@@ -6,8 +6,8 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains import create_retrieval_chain
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 
 from work_buddy.services.confluence_service import ConfluenceService
 from work_buddy.core.config import load_app_config
@@ -102,28 +102,37 @@ class ConfluenceRagAgent:
             "Use the following pieces of retrieved context to answer the troubleshooting query. "
             "If you don't know the answer or the context doesn't contain the answer, "
             "just say that you don't find relevant information in the documentation. "
-            "Always include links to the source documentation if applicable.\n"
-            "Context: {context}"
+            "Always include links to the source documentation if applicable."
         )
-        
+
         prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
+            ("system", system_prompt + "\n\nContext: {context}"),
             ("human", "{input}"),
         ])
-        
-        question_answer_chain = create_stuff_documents_chain(self.llm, prompt)
-        rag_chain = create_retrieval_chain(retriever, question_answer_chain)
-        
-        response = rag_chain.invoke({"input": query})
-        
-        answer = response.get("answer", "")
+
+        # Use LCEL to build the RAG chain
+        def format_docs(docs):
+            return "\n\n".join(doc.page_content for doc in docs)
+
+        rag_chain = (
+            {"context": retriever | format_docs, "input": RunnablePassthrough()}
+            | prompt
+            | self.llm
+            | StrOutputParser()
+        )
+
+        response = rag_chain.invoke(query)
+
+        # Also retrieve docs to get sources
+        docs = retriever.invoke(query)
         sources = []
-        for doc in response.get("context", []):
+        for doc in docs:
             src = doc.metadata.get("source")
             if src and src not in sources:
                 sources.append(src)
-                
-        # Append sources to the answer manually since standard RAG might not format them perfectly
+
+        answer = response
+        # Append sources to the answer
         if sources:
             answer += "\n\n**Sources:**\n"
             for src in sources:

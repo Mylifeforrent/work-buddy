@@ -1,58 +1,39 @@
-import logging
-from typing import Optional
-
 from fastapi import APIRouter, FastAPI, Form, Request, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
+import os
+import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mock_sso")
 
 app = FastAPI(title="Mock Corporate SSO")
+
+# Load the built React UI
+UI_DIST = os.path.join(os.path.dirname(__file__), "..", "ui", "dist")
+
+def get_ui_html(tool_id: str):
+    index_path = os.path.join(UI_DIST, "index.html")
+    if not os.path.exists(index_path):
+        return HTMLResponse("UI not built. Run 'npm run build' in mock_servers/ui", status_code=500)
+    with open(index_path, "r") as f:
+        content = f.read()
+    return HTMLResponse(content.replace("<!-- TOOL_ID -->", tool_id))
+
+app.mount("/assets", StaticFiles(directory=os.path.join(UI_DIST, "assets")), name="assets")
+
 router = APIRouter()
-
-# Simple hardcoded session store
 SESSIONS = set()
-
-LOGIN_HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Corporate SSO Login</title>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; }
-        .login-box { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 300px; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; }
-        input[type="text"], input[type="password"] { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 0.75rem; background: #0052cc; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #0047b3; }
-    </style>
-</head>
-<body>
-    <div class="login-box">
-        <h2>Corporate SSO</h2>
-        <form method="POST" action="/login">
-            <div class="form-group">
-                <label for="username">Staff ID</label>
-                <input type="text" id="username" name="username" required>
-            </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <input type="hidden" name="redirect_url" value="{redirect_url}">
-            <button type="submit" id="submit">Sign In</button>
-        </form>
-    </div>
-</body>
-</html>
-"""
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(redirect_url: str = "/"):
-    """Show the SSO login page."""
+    """Show the SSO login page (React UI)."""
     logger.info(f"GET /login with redirect_url: {redirect_url}")
-    return LOGIN_HTML.replace("{redirect_url}", redirect_url)
+    return get_ui_html("sso")
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return get_ui_html("sso")
 
 @router.post("/login")
 async def login_post(

@@ -1,12 +1,28 @@
-import logging
-from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException, Body, Request
-from pydantic import BaseModel, Field
+import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mock_jira")
 
 app = FastAPI(title="Mock Jira Server")
+
+# Load the built React UI
+UI_DIST = os.path.join(os.path.dirname(__file__), "..", "ui", "dist")
+
+def get_ui_html(tool_id: str):
+    index_path = os.path.join(UI_DIST, "index.html")
+    if not os.path.exists(index_path):
+        return HTMLResponse("UI not built. Run 'npm run build' in mock_servers/ui", status_code=500)
+    with open(index_path, "r") as f:
+        content = f.read()
+    return HTMLResponse(content.replace("<!-- TOOL_ID -->", tool_id))
+
+app.mount("/assets", StaticFiles(directory=os.path.join(UI_DIST, "assets")), name="assets")
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return get_ui_html("jira")
 
 # In-memory storage seeded with data soon
 TICKETS: Dict[str, dict] = {}

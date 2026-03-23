@@ -1,6 +1,5 @@
-import logging
-from typing import Optional
-from fastapi import FastAPI, Request
+import os
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
 logging.basicConfig(level=logging.INFO)
@@ -8,41 +7,29 @@ logger = logging.getLogger("mock_opensearch")
 
 app = FastAPI(title="Mock OpenSearch Server")
 
-LOGS = []
+# Load the built React UI
+UI_DIST = os.path.join(os.path.dirname(__file__), "..", "ui", "dist")
 
-DASHBOARD_HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>OpenSearch Dashboards</title>
-    <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; }
-        .search-bar { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-    </style>
-</head>
-<body>
-    <h2>Mock OpenSearch Dashboards</h2>
-    <input type="text" class="search-bar" placeholder="Search logs..." value="{query}">
-    <table>
-        <tr>
-            <th>Timestamp</th>
-            <th>Level</th>
-            <th>Service</th>
-            <th>Message</th>
-        </tr>
-        <tr>
-            <td>2023-01-01 12:00:00</td>
-            <td>ERROR</td>
-            <td>PaymentService</td>
-            <td>Failed to connect to DB</td>
-        </tr>
-    </table>
-</body>
-</html>
-"""
+def get_ui_html(tool_id: str):
+    index_path = os.path.join(UI_DIST, "index.html")
+    if not os.path.exists(index_path):
+        return HTMLResponse("UI not built. Run 'npm run build' in mock_servers/ui", status_code=500)
+    with open(index_path, "r") as f:
+        content = f.read()
+    return HTMLResponse(content.replace("<!-- TOOL_ID -->", tool_id))
+
+app.mount("/assets", StaticFiles(directory=os.path.join(UI_DIST, "assets")), name="assets")
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return get_ui_html("opensearch")
+
+@app.get("/app/dashboards", response_class=HTMLResponse)
+async def get_dashboard(query: str = ""):
+    logger.info(f"GET /app/dashboards query={query}")
+    return get_ui_html("opensearch")
+
+LOGS = []
 
 @app.get("/app/dashboards", response_class=HTMLResponse)
 async def get_dashboard(query: str = ""):
