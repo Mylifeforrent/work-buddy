@@ -10,7 +10,7 @@
     {
       "path": "evidence/httpbin-test_forms_test_form_initial.png",
       "label": "httpbin-test_forms_test_form_initial",
-      "timestamp": "2026-03-23T13:11:31.749205Z",
+      "timestamp": "2026-03-23T14:40:25.588585Z",
       "url": "https://httpbin.org/forms/post",
       "width": 1920,
       "height": 1080
@@ -18,7 +18,7 @@
     {
       "path": "evidence/httpbin-test_forms_test_form_filled.png",
       "label": "httpbin-test_forms_test_form_filled",
-      "timestamp": "2026-03-23T13:11:35.962050Z",
+      "timestamp": "2026-03-23T14:40:30.184660Z",
       "url": "https://httpbin.org/forms/post",
       "width": 1920,
       "height": 1080
@@ -26,12 +26,22 @@
     {
       "path": "evidence/httpbin-test_forms_test_FAILURE.png",
       "label": "httpbin-test_forms_test_FAILURE",
-      "timestamp": "2026-03-23T13:12:07.086756Z",
+      "timestamp": "2026-03-23T14:41:01.346272Z",
       "url": "https://httpbin.org/forms/post",
       "width": 1920,
       "height": 1080
     }
   ],
-  "recordings": [],
+  "recordings": [
+    {
+      "path": "evidence/recordings/httpbin-test_forms_test_20260323_144101.webm",
+      "format": "webm",
+      "label": "httpbin-test_forms_test",
+      "timestamp": "2026-03-23T14:41:01.604541Z",
+      "duration_seconds": 0.0,
+      "size_bytes": 585351,
+      "url": ""
+    }
+  ],
   "gifs": []
 }

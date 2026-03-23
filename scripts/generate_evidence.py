@@ -47,7 +47,7 @@ async def generate_evidence():
     print("   ✓ Browser launched (Chromium headless)")
 
     try:
-        agent = BrowserTestAgent(browser=browser, output_dir=output_dir, enable_recording=False)
+        agent = BrowserTestAgent(browser=browser, output_dir=output_dir, enable_recording=True)
 
         # Test 1: Navigate to example.com and take screenshots
         print("\n2. Running Test Flow 1: Simple Navigation Test")

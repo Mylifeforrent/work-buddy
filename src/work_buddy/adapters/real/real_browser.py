@@ -13,6 +13,33 @@ from work_buddy.services.browser_service import BrowserService, Screenshot
 class RealBrowserAdapter(BrowserService):
     """Playwright implementation of BrowserService with video recording support."""
 
+    # CSS for custom mouse cursor overlay
+    CURSOR_CSS = """
+    <style id="__work_buddy_cursor_style__">
+    .__work_buddy_cursor__ {
+        position: fixed;
+        width: 20px;
+        height: 20px;
+        background: radial-gradient(circle, #ff4d4f 0%, #ff7875 40%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 999999;
+        transform: translate(-50%, -50%);
+        transition: left 0.05s ease-out, top 0.05s ease-out;
+        box-shadow: 0 0 10px rgba(255, 77, 79, 0.5);
+    }
+    .__work_buddy_cursor__.__clicked__ {
+        background: radial-gradient(circle, #52c41a 0%, #73d13d 40%, transparent 70%);
+        box-shadow: 0 0 15px rgba(82, 196, 26, 0.7);
+        transform: translate(-50%, -50%) scale(1.3);
+    }
+    </style>
+    """
+
+    CURSOR_HTML = """
+    <div class="__work_buddy_cursor__" id="__work_buddy_cursor__"></div>
+    """
+
     def __init__(self):
         self.playwright: Optional[Playwright] = None
         self.browser: Optional[Browser] = None
@@ -22,6 +49,7 @@ class RealBrowserAdapter(BrowserService):
         self._recording_context: Optional[BrowserContext] = None
         self._recording_page: Optional[Page] = None
         self._recording_start_time: Optional[datetime] = None
+        self._cursor_visible: bool = False
 
     async def launch(self, headless: bool = True) -> None:
         """Launch the playwright browser and create a new page."""
@@ -54,6 +82,11 @@ class RealBrowserAdapter(BrowserService):
         page = self._active_page()
         await page.goto(url, wait_until="networkidle")
 
+        # Re-setup cursor tracking after navigation (for recording page)
+        if self._recording_page:
+            await asyncio.sleep(0.5)  # Wait for page to settle
+            await self._setup_cursor_tracking()
+
     async def screenshot(self, path: str, full_page: bool = False) -> Screenshot:
         """Capture a screenshot of the current page."""
         page = self._active_page()
@@ -76,11 +109,46 @@ class RealBrowserAdapter(BrowserService):
     async def click(self, selector: str) -> None:
         """Click an element matching the CSS selector."""
         page = self._active_page()
+
+        # Show cursor at element location before clicking (for recording visibility)
+        if self._recording_page:
+            try:
+                element = await page.query_selector(selector)
+                if element:
+                    box = await element.bounding_box()
+                    if box:
+                        # Move cursor to element center
+                        x = box['x'] + box['width'] / 2
+                        y = box['y'] + box['height'] / 2
+                        await self._move_cursor_to(x, y)
+                        await asyncio.sleep(0.1)  # Brief pause to show cursor
+            except Exception:
+                pass
+
         await page.click(selector)
+
+        # Show click animation
+        if self._recording_page:
+            await self._show_click_animation()
 
     async def type_text(self, selector: str, text: str) -> None:
         """Type text into an input element."""
         page = self._active_page()
+
+        # Show cursor at element location (for recording visibility)
+        if self._recording_page:
+            try:
+                element = await page.query_selector(selector)
+                if element:
+                    box = await element.bounding_box()
+                    if box:
+                        x = box['x'] + box['width'] / 2
+                        y = box['y'] + box['height'] / 2
+                        await self._move_cursor_to(x, y)
+                        await asyncio.sleep(0.1)
+            except Exception:
+                pass
+
         await page.fill(selector, text)
 
     async def wait_for(self, selector: str, timeout: int = 30000) -> None:
@@ -133,6 +201,10 @@ class RealBrowserAdapter(BrowserService):
         )
         self._recording_page = await self._recording_context.new_page()
         self._recording_start_time = datetime.utcnow()
+        self._cursor_visible = False
+
+        # Set up cursor tracking for recording page
+        await self._setup_cursor_tracking()
 
     async def stop_recording(self) -> str:
         """Stop recording, close the recording context, and return video path.
@@ -239,3 +311,68 @@ class RealBrowserAdapter(BrowserService):
         if not self.page:
             raise RuntimeError("Browser not launched")
         return self.page
+
+    # ── Cursor Visibility for Recordings ─────────────────────────────────────
+
+    async def _setup_cursor_tracking(self) -> None:
+        """Set up the custom cursor overlay on the recording page."""
+        if not self._recording_page:
+            return
+
+        try:
+            # Inject cursor CSS and HTML
+            await self._recording_page.evaluate(f"""
+                document.head.insertAdjacentHTML('beforeend', `{self.CURSOR_CSS}`);
+                document.body.insertAdjacentHTML('beforeend', `{self.CURSOR_HTML}`);
+            """)
+            self._cursor_visible = True
+        except Exception:
+            pass
+
+    async def _move_cursor_to(self, x: float, y: float) -> None:
+        """Move the custom cursor to a specific position."""
+        if not self._recording_page or not self._cursor_visible:
+            return
+
+        try:
+            await self._recording_page.evaluate(f"""
+                const cursor = document.getElementById('__work_buddy_cursor__');
+                if (cursor) {{
+                    cursor.style.left = '{x}px';
+                    cursor.style.top = '{y}px';
+                    cursor.style.display = 'block';
+                }}
+            """)
+        except Exception:
+            pass
+
+    async def _show_click_animation(self) -> None:
+        """Show a brief click animation on the cursor."""
+        if not self._recording_page or not self._cursor_visible:
+            return
+
+        try:
+            await self._recording_page.evaluate("""
+                const cursor = document.getElementById('__work_buddy_cursor__');
+                if (cursor) {
+                    cursor.classList.add('__clicked__');
+                    setTimeout(() => cursor.classList.remove('__clicked__'), 200);
+                }
+            """)
+        except Exception:
+            pass
+
+    async def _hide_cursor(self) -> None:
+        """Hide the custom cursor."""
+        if not self._recording_page or not self._cursor_visible:
+            return
+
+        try:
+            await self._recording_page.evaluate("""
+                const cursor = document.getElementById('__work_buddy_cursor__');
+                if (cursor) {
+                    cursor.style.display = 'none';
+                }
+            """)
+        except Exception:
+            pass

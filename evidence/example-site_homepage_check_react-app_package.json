@@ -8,12 +8,22 @@
     {
       "path": "evidence/example-site_homepage_check_homepage.png",
       "label": "example-site_homepage_check_homepage",
-      "timestamp": "2026-03-23T13:11:19.055891Z",
+      "timestamp": "2026-03-23T14:44:46.044558Z",
       "url": "https://example.com/",
       "width": 1920,
       "height": 1080
     }
   ],
-  "recordings": [],
+  "recordings": [
+    {
+      "path": "evidence/recordings/example-site_homepage_check_20260323_144448.webm",
+      "format": "webm",
+      "label": "example-site_homepage_check",
+      "timestamp": "2026-03-23T14:44:48.429967Z",
+      "duration_seconds": 0.0,
+      "size_bytes": 60186,
+      "url": ""
+    }
+  ],
   "gifs": []
 }

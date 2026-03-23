@@ -69,7 +69,9 @@ class BrowserTestAgent:
                 # Convert to GIF
                 gif_name = f"{project_name}_{flow_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.gif"
                 gif_path = os.path.join(self.gifs_dir, gif_name)
+                print(f"Converting video to GIF: {final_video_path} -> {gif_path}")
                 result_gif = await self.browser.convert_to_gif(final_video_path, gif_path)
+                print(f"GIF conversion result: {result_gif}")
                 if result_gif:
                     gif_size = os.path.getsize(result_gif) if os.path.exists(result_gif) else 0
                     gif_recording = Recording(
